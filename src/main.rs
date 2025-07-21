@@ -1,12 +1,16 @@
 use std::time::Duration;
 
 use mini_graph::mini_graph::audio_graph::DynamicAudioGraph;
+use mini_graph::mini_graph::bang::Bang;
 use mini_graph::mini_graph::write::write_data;
+use mini_graph::nodes::audio::gain::Gain;
+use mini_graph::nodes::audio::mixer::Mixer;
 use mini_graph::nodes::bang::clock::Clock;
-use mini_graph::nodes::audio::{adsr::ADSR, comb_filter::CombFilter, mixer:: Mixer, gain::Gain, hard_clipper::HardClipper, osc::*};
+use mini_graph::nodes::audio::{adsr::ADSR, osc::*};
 use assert_no_alloc::*;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, BuildStreamError, FromSample, SampleRate, SizedSample, StreamConfig};
+use mini_graph::nodes::bang::iter::BangIter;
 
 
 #[cfg(debug_assertions)] // required when disable_release is set (default)
@@ -23,35 +27,40 @@ where
 {
     let mut audio_graph = DynamicAudioGraph::<FRAME_SIZE, CHANNEL_COUNT>::with_capacity(32);
 
-    let clock_id = audio_graph.add_node(Box::new(Clock::new(SAMPLE_RATE, Duration::from_secs_f32(1.0))));
+    let clock_one = audio_graph.add_node(Box::new(Clock::<FRAME_SIZE, CHANNEL_COUNT>::new(SAMPLE_RATE, Duration::from_secs_f32(0.5))));
 
-    let clock_two = audio_graph.add_node(Box::new(Clock::new(SAMPLE_RATE, Duration::from_secs_f32(1.0 / 3.0))));
+    let clock_two = audio_graph.add_node(Box::new(Clock::<FRAME_SIZE, CHANNEL_COUNT>::new(SAMPLE_RATE, Duration::from_secs_f32(2.0 / 3.0))));
 
-    let osc_id = audio_graph.add_node(Box::new(Oscillator::new(440.0, SAMPLE_RATE, 0.0, Wave::SinWave)));
+    let iterator_one = audio_graph.add_node(Box::new(BangIter::<FRAME_SIZE, CHANNEL_COUNT>::new(&[Bang::BangF32(440.0), Bang::BangF32(523.251), Bang::BangF32(783.991)])));
 
-    let osc_two = audio_graph.add_node(Box::new(Oscillator::new(880.0, SAMPLE_RATE, 0.0, Wave::SinWave)));
+    let iterator_two = audio_graph.add_node(Box::new(BangIter::<FRAME_SIZE, CHANNEL_COUNT>::new(&[Bang::BangF32(440.0 * 2.0), Bang::BangF32(523.251 * 2.0), Bang::BangF32(783.991 * 2.0)])));
 
-    let adsr_id = audio_graph.add_node(Box::new(ADSR::new(SAMPLE_RATE)));
+    let adsr_one = audio_graph.add_node(Box::new(ADSR::new(SAMPLE_RATE)));
 
     let adsr_two = audio_graph.add_node(Box::new(ADSR::new(SAMPLE_RATE)));
 
-    audio_graph.add_edge(osc_two, adsr_two);
+    let osc_one = audio_graph.add_node(Box::new(Oscillator::new(440.0, SAMPLE_RATE, 0.0, Wave::SawWave)));
 
-    audio_graph.add_edge(osc_id, adsr_id);
-
-    audio_graph.add_edge(clock_id, adsr_id);
-
-    audio_graph.add_edge(clock_two, adsr_two);
+    let osc_two = audio_graph.add_node(Box::new(Oscillator::new(440.0, SAMPLE_RATE, 0.0, Wave::SawWave)));
 
     let gain = audio_graph.add_node(Box::new(Gain::new(0.3)));
 
+    audio_graph.add_edges(&[
+        (clock_one, iterator_one), 
+        (iterator_one, osc_one),
+        (osc_one, adsr_one),
+        (clock_one, adsr_one), 
+
+        (clock_two, iterator_two),
+        (iterator_two, osc_two),
+        (osc_two, adsr_two),
+        (clock_two, adsr_two)
+        ]
+    );
+
     let mixer = audio_graph.add_node(Box::new(Mixer {}));
 
-    audio_graph.add_edge(adsr_id, mixer);
-
-    audio_graph.add_edge(adsr_two, mixer);
-
-    audio_graph.add_edge(mixer, gain);
+    audio_graph.add_edges(&[(adsr_one, mixer), (adsr_two, mixer), (mixer, gain)]);
 
     audio_graph.set_sink_index(gain);
 

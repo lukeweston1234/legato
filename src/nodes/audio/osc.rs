@@ -1,5 +1,6 @@
 use crate::mini_graph::node::Node;
 use crate::mini_graph::buffer::{Frame};
+use crate::mini_graph::bang::Bang;
 
 pub enum Wave {
     SinWave,
@@ -47,6 +48,15 @@ impl<const N: usize, const C: usize> Node<N, C> for Oscillator<N> {
             let sample = self.tick_osc();
             for buf in output.iter_mut() {
                 buf[i] = sample;
+            }
+        }
+    }
+    
+    fn handle_bang(&mut self, inputs: &[Bang], _: &mut Bang) {
+        if let Some(bang) = inputs.get(0) {
+            match bang {
+                Bang::BangF32(freq) => self.freq = *freq,
+                _ => ()
             }
         }
     }

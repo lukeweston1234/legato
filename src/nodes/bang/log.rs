@@ -9,7 +9,6 @@ impl<const N: usize, const C: usize>  Node<N,C> for Log<N, C>{
                 Bang::Empty => (),
                 item => println!("{:?}", item)
             }
-            
         }
     }
 }

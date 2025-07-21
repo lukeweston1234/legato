@@ -1,10 +1,10 @@
 use crate::mini_graph::{bang::Bang, node::Node};
 
-pub struct Iter<'a, const C: usize, const N: usize> {
+pub struct BangIter<'a, const C: usize, const N: usize> {
     position: usize,
     values: &'a[Bang],
 }
-impl<'a, const C: usize, const N: usize> Iter<'a, C, N> {
+impl<'a, const C: usize, const N: usize> BangIter<'a, C, N> {
     pub fn new(values: &'a[Bang]) -> Self {
         Self {
             position: 0,
@@ -12,7 +12,7 @@ impl<'a, const C: usize, const N: usize> Iter<'a, C, N> {
         }
     }
 }
-impl<'a, const C: usize, const N: usize> Node<C, N> for Iter<'a, C, N>{
+impl<'a, const C: usize, const N: usize> Node<C, N> for BangIter<'a, C, N>{
     fn handle_bang(&mut self, inputs: &[Bang], output: &mut Bang) {
         for input in inputs {
             if *input == Bang::Bang {

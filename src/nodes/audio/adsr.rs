@@ -32,7 +32,7 @@ impl<const N: usize, const C: usize> ADSR<N, C> {
     pub fn new(sample_rate: u32) -> Self {
         Self {
             attack_time:   0.1,   // e.g. 10 ms
-            decay_time:    0.1,    // e.g. 200 ms
+            decay_time:    0.2,    // e.g. 200 ms
             sustain_time:  0.0,    // 0 for infinite sustain until note-off
             release_time:  0.2,    // e.g. 500 ms
 
