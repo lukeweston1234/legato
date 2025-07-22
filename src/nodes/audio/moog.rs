@@ -37,8 +37,8 @@ impl<const BUFFER_SIZE: usize, const CHANNEL_COUNT: usize> MoogFilter<BUFFER_SIZ
             filters: [MoogFilterState::default(); CHANNEL_COUNT]
         };
 
-        const DEFAULT_CUTOFF: f32 = 500.0;
-        const DEFAULT_Q: f32 = 0.300;
+        const DEFAULT_CUTOFF: f32 = 2400.0;
+        const DEFAULT_Q: f32 = 0.500;
 
         new_filter.set_cutoff_q(DEFAULT_CUTOFF, DEFAULT_Q);
 
