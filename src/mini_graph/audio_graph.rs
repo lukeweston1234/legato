@@ -11,6 +11,8 @@ use super::graph::{DynamicGraph, Graph};
 
 const MAXIMUM_BANG_INPUT_PORTS: usize = 4;
 
+/// A resizable audio graph for experimentation. Pre-allocated, but not realtime safe, as the vector could grow.
+/// We will soon add a fixed size, no_std graph for better real-time performance 
 pub struct DynamicAudioGraph<const BUFFER_SIZE: usize, const CHANNEL_COUNT: usize> {
     graph: DynamicGraph<BoxedNode<BUFFER_SIZE, CHANNEL_COUNT>>,
     // Audio Work Buffers
@@ -64,7 +66,6 @@ impl<const BUFFER_SIZE: usize, const CHANNEL_COUNT: usize> DynamicAudioGraph<BUF
             Ok(order) => self.sort_order = order,
             Err(_) => panic!("Cycle detected in audio graph"),
         }
-        println!("{:?}", self.sort_order);
     }
 
     #[inline(always)]
