@@ -5,7 +5,15 @@ use crate::mini_graph::{buffer::Frame, node::Node};
 
 #[derive(Copy, Clone)]
 pub enum FilterType {
-    Lowpass
+    Lowpass,
+    Bandpass,
+    Highpass,
+    Notch,
+    Peak,
+    AllPass,
+    Bell,
+    LowShelf,
+    HighShelf,
 }
 #[derive(Copy, Clone, Default)]
 struct SvfState {
@@ -72,7 +80,19 @@ impl<const C: usize> Svf<C> {
                 self.coefficients.m0 = 0.0;
                 self.coefficients.m1 = 0.0;
                 self.coefficients.m2 = 1.0;
-            }
+            },
+            FilterType::Bandpass => {
+                let g = (PI * self.cutoff / self.sample_rate).tan();
+                let k = 1.0 / self.q;
+
+                self.coefficients.a1 = 1.0 / (1.0 + g*(g + k));
+                self.coefficients.a2 = g * self.coefficients.a1;
+                self.coefficients.a3 = g*self.coefficients.a2;
+                self.coefficients.m0 = 0.0;
+                self.coefficients.m1 = 1.0;
+                self.coefficients.m2 = 0.0;
+            },
+            _ => ()
         }
     }
 }
