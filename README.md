@@ -35,7 +35,6 @@ impl <const N: usize, const C: usize> Node<N, C> for Gain<N> {
 
 ### Planned Features
 
-- Using Graphs as audio nodes themselves, allowing to say create a large reverb graph and use that as its own node
 - Audio/midi input nodes
 - Proc macro for quickly generating graphs for prototyping
 - Sized/fixed graph for no_std environments, final deployments, etc.
