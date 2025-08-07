@@ -1,4 +1,4 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::{Frame};
 
 pub struct Gate {
@@ -11,7 +11,7 @@ impl Gate {
         }
     }
 }
-impl<const C: usize, const N: usize> Node<C, N> for Gate {
+impl<const C: usize, const N: usize> AudioNode<C, N> for Gate {
     #[inline(always)]
     fn process(&mut self, inputs: &[Frame<C, N>], output: &mut Frame<C, N>) {
         if let Some(input) = inputs.get(0) {

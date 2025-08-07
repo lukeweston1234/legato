@@ -1,10 +1,10 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::{Frame};
 
 #[derive(Default)]
 pub struct Mixer<const N: usize> {}
 
-impl<const N: usize, const C: usize> Node<N, C> for Mixer<N> {
+impl<const N: usize, const C: usize> AudioNode<N, C> for Mixer<N> {
     #[inline(always)]
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>){
         for n in 0..N {

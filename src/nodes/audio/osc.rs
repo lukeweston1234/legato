@@ -1,4 +1,4 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::{Frame};
 use crate::mini_graph::bang::Bang;
 
@@ -41,7 +41,7 @@ impl<const N: usize> Oscillator<N> {
         sample
     }
 }
-impl<const N: usize, const C: usize> Node<N, C> for Oscillator<N> {
+impl<const N: usize, const C: usize> AudioNode<N, C> for Oscillator<N> {
     #[inline(always)]
     fn process(&mut self, _: &[Frame<N, C>], output: &mut Frame<N, C>){
         for i in 0..N {

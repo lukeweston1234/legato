@@ -1,4 +1,4 @@
-use crate::mini_graph::{bang::Bang, node::Node};
+use crate::mini_graph::{bang::Bang, node::AudioNode};
 
 pub struct BangIter<'a, const C: usize, const N: usize> {
     position: usize,
@@ -12,7 +12,7 @@ impl<'a, const C: usize, const N: usize> BangIter<'a, C, N> {
         }
     }
 }
-impl<'a, const C: usize, const N: usize> Node<C, N> for BangIter<'a, C, N>{
+impl<'a, const C: usize, const N: usize> AudioNode<C, N> for BangIter<'a, C, N>{
     fn handle_bang(&mut self, inputs: &[Bang], output: &mut Bang) {
         for input in inputs {
             if *input == Bang::Bang {

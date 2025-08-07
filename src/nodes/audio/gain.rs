@@ -1,4 +1,4 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::{Frame};
 
 pub struct Gain<const FRAME_SIZE: usize> {
@@ -11,7 +11,7 @@ impl<const N: usize> Gain<N> {
         }
     }
 }
-impl <const N: usize, const C: usize> Node<N, C> for Gain<N> {
+impl <const N: usize, const C: usize> AudioNode<N, C> for Gain<N> {
     #[inline(always)]
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>){
         // This node only takes an input of one stereo buffer.

@@ -1,4 +1,4 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::{Frame};
 
 pub struct HardClipper<const FRAME_SIZE: usize> {
@@ -11,7 +11,7 @@ impl<const N: usize> HardClipper<N> {
         }
     }
 }
-impl<const N: usize, const C: usize> Node<N,C> for HardClipper<N> {
+impl<const N: usize, const C: usize> AudioNode<N,C> for HardClipper<N> {
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>){
         if (self.limit > 1.0) {
             panic!("Invalid limit!!")

@@ -1,6 +1,6 @@
 // For now, we are just using u8 values. Maybe Enums for note names in the future
 
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::bang::{Bang};
 
 pub struct MidiToF {}
@@ -10,7 +10,7 @@ impl MidiToF {
       440.0 * (f32::powf(2.0, (midi as f32 - 69.0) / 12.0) )
     }
 }
-impl<const N: usize, const C: usize> Node<N, C> for MidiToF {
+impl<const N: usize, const C: usize> AudioNode<N, C> for MidiToF {
     fn handle_bang(&mut self, inputs: &[Bang], output: &mut Bang) {
         if let Some(input) = inputs.get(0) {
             match *input {

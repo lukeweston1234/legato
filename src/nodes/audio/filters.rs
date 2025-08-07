@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::mini_graph::{buffer::Frame, node::Node};
+use crate::mini_graph::{buffer::Frame, node::AudioNode};
 
 
 #[derive(Copy, Clone)]
@@ -194,7 +194,7 @@ impl<const C: usize> Svf<C> {
 
 const CUTOFF_EPSILON: f32 = 1e-3;
 
-impl<const N: usize, const C: usize> Node<N, C> for Svf<C>{
+impl<const N: usize, const C: usize> AudioNode<N, C> for Svf<C>{
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>) {
         let input = match inputs.get(0) {
             Some(input) => input,

@@ -1,5 +1,5 @@
 use crate::mini_graph::bang::Bang;
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::Frame;
 
 enum Stage {
@@ -72,7 +72,7 @@ impl<const N: usize, const C: usize> ADSR<N, C> {
     }
 }
 
-impl<const N: usize, const C: usize> Node<N, C> for ADSR<N, C> {
+impl<const N: usize, const C: usize> AudioNode<N, C> for ADSR<N, C> {
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>) {
         let dt = 1.0 / self.sample_rate;
         let input = inputs[0];

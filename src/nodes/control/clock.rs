@@ -1,4 +1,4 @@
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::bang::Bang;
 
 pub struct Clock<const N: usize, const C: usize> {
@@ -22,7 +22,7 @@ impl<const N: usize, const C: usize> Clock<N, C> {
     }
 }
 
-impl<const N: usize, const C: usize> Node<N, C> for Clock<N, C> {
+impl<const N: usize, const C: usize> AudioNode<N, C> for Clock<N, C> {
     fn handle_bang(&mut self, inputs: &[Bang], output: &mut Bang) {
         if let Some(b) = inputs.get(0) {
             match b {

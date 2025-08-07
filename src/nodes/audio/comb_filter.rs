@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use crate::mini_graph::node::Node;
+use crate::mini_graph::node::AudioNode;
 use crate::mini_graph::buffer::Frame;
 
 pub struct CombFilter<const N: usize, const C: usize> {
@@ -28,7 +28,7 @@ impl<const N: usize, const C: usize> CombFilter<N, C>{
     }
 }
 
-impl<const N: usize, const C: usize> Node<N, C> for CombFilter<N, C> {
+impl<const N: usize, const C: usize> AudioNode<N, C> for CombFilter<N, C> {
     #[inline(always)]
     fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>) {
         if self.feedback >= 1.0 {

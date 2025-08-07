@@ -12,6 +12,7 @@ cpal = { version = "0.16.0", features = ["jack"] }
 assert_no_alloc = "1.1.2"
 hashbrown = { version = "0.15.4", features = ["inline-more"] }
 indexmap = "2.10.0"
+heapless = "0.8.0"
 
 
 [dev-dependencies]
