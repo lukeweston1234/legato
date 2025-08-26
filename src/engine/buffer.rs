@@ -46,30 +46,32 @@ impl<const N: usize> DerefMut for Buffer<N> {
     }
 }
 
-pub struct Frame<const BUFFER_SIZE: usize> {
-    data: [Buffer<BUFFER_SIZE>]
-}
+pub type Frame<const BUFFER_SIZE: usize> = [Buffer<BUFFER_SIZE>];
+
+// pub struct Frame<const BUFFER_SIZE: usize> {
+//     data: [Buffer<BUFFER_SIZE>]
+// }
 
 
-impl<'a, const BUFFER_SIZE: usize> Deref for Frame<BUFFER_SIZE> {
-    type Target = [Buffer<BUFFER_SIZE>];
-    fn deref(&self) -> &Self::Target {
-        &self.data[..]
-    }
-}
+// impl<'a, const BUFFER_SIZE: usize> Deref for Frame<BUFFER_SIZE> {
+//     type Target = [Buffer<BUFFER_SIZE>];
+//     fn deref(&self) -> &Self::Target {
+//         &self.data[..]
+//     }
+// }
 
-impl<'a, const BUFFER_SIZE: usize> DerefMut for Frame<BUFFER_SIZE> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data[..]
-    }
-}
+// impl<'a, const BUFFER_SIZE: usize> DerefMut for Frame<BUFFER_SIZE> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.data[..]
+//     }
+// }
 
-pub fn zero_frame<const BUFFER_SIZE: usize>(frame: &mut Frame<BUFFER_SIZE>){
-    for channel in frame.iter_mut() {
-        for b_idx in 0..BUFFER_SIZE {
-            channel[b_idx] = 0.0
-        }
-    }
-}
+// pub fn zero_frame<const BUFFER_SIZE: usize>(frame: &mut Frame<BUFFER_SIZE>){
+//     for channel in frame.iter_mut() {
+//         for b_idx in 0..BUFFER_SIZE {
+//             channel[b_idx] = 0.0
+//         }
+//     }
+// }
 
 

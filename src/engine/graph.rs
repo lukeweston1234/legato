@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
-
 use indexmap::IndexSet;
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
-
 use crate::engine::node::Node;
 
 #[derive(Debug, PartialEq)]
@@ -23,7 +21,7 @@ pub struct Connection {
 
 const MAXIMUM_INPUTS: usize = 8;
 
-pub type AudioNode<const N: usize> = Box<dyn Node<N>>;
+pub type AudioNode<const N: usize> = Box<dyn Node<N> + Send>;
 
 /// A DAG for grabbing nodes and their dependencies via topological sort.
 pub struct AudioGraph<const N: usize> {
@@ -60,12 +58,18 @@ impl<const N: usize> AudioGraph<N> {
         key
     }
 
+    #[inline(always)]
     pub fn get_node(&self, key: NodeKey) -> Option<&AudioNode<N>> {
         self.nodes.get(key)
     }
 
-    pub fn get_node_mut(&mut self, key: NodeKey) -> Option<&mut AudioNode<N>> {
-        self.nodes.get_mut(key)
+    #[inline(always)]
+    pub fn get_node_mut(&mut self, key: &NodeKey) -> Option<&mut AudioNode<N>> {
+        self.nodes.get_mut(*key)
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.len()
     }
 
     /// Removes a node and all edges incident to it.
@@ -119,7 +123,7 @@ impl<const N: usize> AudioGraph<N> {
             }
             None => return Err(GraphError::BadConnection),
         }
-        self.invalidate_topo_sort();
+        self.invalidate_topo_sort()?;
         Ok(connection)
     }
 
@@ -132,11 +136,11 @@ impl<const N: usize> AudioGraph<N> {
     }
 
     pub fn remove_edge(&mut self, connection: Connection) -> Result<(), GraphError> {
-        let mut ok = true;
+        let mut adj_remove_status = true;
         match self.outgoing_edges.get_mut(connection.source_key) {
             Some(adjacencies) => {
                 if !adjacencies.shift_remove(&connection) {
-                    ok = false;
+                    adj_remove_status = false;
                 }
             }
             None => return Err(GraphError::BadConnection),
@@ -144,20 +148,20 @@ impl<const N: usize> AudioGraph<N> {
         match self.incoming_edges.get_mut(connection.sink_key) {
             Some(adjacencies) => {
                 if !adjacencies.shift_remove(&connection) {
-                    ok = false;
+                    adj_remove_status = false;
                 }
             }
             None => return Err(GraphError::BadConnection),
         }
-        if ok {
-            self.invalidate_topo_sort();
+        if adj_remove_status {
+            let _ = self.invalidate_topo_sort().map_err(|_| GraphError::BadConnection);
             Ok(())
         } else {
             Err(GraphError::BadConnection)
         }
     }
 
-    fn invalidate_topo_sort(&mut self) -> Result<&[NodeKey], GraphError> {
+    pub fn invalidate_topo_sort(&mut self) -> Result<Vec<NodeKey>, GraphError> {
         // Reset indegrees
         for key in self.nodes.keys() {
             if let Some(v) = self.indegree.get_mut(key) {
@@ -201,7 +205,8 @@ impl<const N: usize> AudioGraph<N> {
         }
 
         if self.topo_sorted.len() == self.nodes.len() {
-            Ok(&self.topo_sorted)
+            // I think this is acceptable, as it should not be happening in realtime, but we can refactor this soon
+            Ok(self.topo_sorted.clone())
         } else {
             Err(GraphError::CycleDetected)
         }
@@ -215,7 +220,8 @@ mod test {
     use crate::engine::graph::{AudioGraph, Connection};
     use crate::engine::node::Node;
     use crate::engine::port::{Port, PortBehavior, Ported};
-
+    use crate::engine::graph::GraphError::CycleDetected;
+    
     use super::NodeKey;
 
     #[derive(Default, Debug, PartialEq, Hash)]
@@ -392,7 +398,7 @@ mod test {
         let a = graph.add_node(Box::new(ExampleNode::default()));
         let b = graph.add_node(Box::new(ExampleNode::default()));
 
-        graph
+        let _ = graph
             .add_edge(Connection {
                 source_key: a,
                 sink_key: b,
@@ -400,33 +406,25 @@ mod test {
                 source_port_index: 0,
             })
             .unwrap();
-        graph
+        // Bad edge, contains Err from cycle
+        let _ = graph
             .add_edge(Connection {
                 source_key: b,
                 sink_key: a,
                 sink_port_index: 0,
                 source_port_index: 0,
-            })
-            .unwrap();
+            });
 
-        let err = graph.invalidate_topo_sort().unwrap_err();
-        assert_eq!(err, crate::engine::graph::GraphError::CycleDetected);
+        let res = graph.invalidate_topo_sort();
+        assert_eq!(res, Err(CycleDetected));
     }
 
     #[test]
     fn test_cycle_detection_self_loop() {
         let mut graph = AudioGraph::<256>::with_capacity(1);
         let a = graph.add_node(Box::new(ExampleNode::default()));
-        graph
-            .add_edge(Connection {
-                source_key: a,
-                sink_key: a,
-                sink_port_index: 0,
-                source_port_index: 0,
-            })
-            .unwrap();
-        let err = graph.invalidate_topo_sort().unwrap_err();
-        assert_eq!(err, crate::engine::graph::GraphError::CycleDetected);
+        let res = graph.add_edge(Connection { source_key: a, sink_key: a, sink_port_index: 0, source_port_index: 0});
+        assert_eq!(res, Err(CycleDetected));
     }
 
     #[test]
@@ -467,16 +465,16 @@ mod test {
     fn test_add_edge_rejects_missing_endpoints() {
         let mut graph = AudioGraph::<256>::with_capacity(2);
         let a = graph.add_node(Box::new(ExampleNode::default()));
-        // fabricate a non-existent key by not inserting a second node
-        // (we'll use a removed one to be explicit)
-        let bogus = {
+
+        // Spoof a bad key
+        let nonexistent_key = {
             let temp = graph.add_node(Box::new(ExampleNode::default()));
             let _ = graph.remove_node(temp);
             temp
         };
         let res = graph.add_edge(Connection {
             source_key: a,
-            sink_key: bogus,
+            sink_key: nonexistent_key,
             sink_port_index: 0,
             source_port_index: 0,
         });
