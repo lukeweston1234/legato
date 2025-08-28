@@ -24,7 +24,7 @@ impl<const N: usize, const C: usize> Runtime<N, C> {
         }
     }
     pub fn add_node(&mut self, node: AudioNode<N>) -> NodeKey {
-        let node_source_length = node.get_inputs().len();
+        let node_source_length = node.get_outputs().len();
         let node_key = self.graph.add_node(node);
 
         self.port_sources.insert(node_key, vec![Buffer::<N>::SILENT; node_source_length]);

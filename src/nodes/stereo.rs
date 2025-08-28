@@ -1,8 +1,18 @@
 use crate::engine::{buffer::Buffer, node::Node, port::{Port, PortBehavior, PortedErased}};
 use crate::engine::audio_context::AudioContext;
 
-#[derive(Default)]
-pub struct Stereo {}
+pub struct Stereo {
+    ports: StereoPorts
+}
+
+impl Default for Stereo {
+    fn default() -> Self {
+        Self {
+            ports: StereoPorts::new()
+        }
+    }
+}
+
 
 impl<const N: usize> Node<N> for Stereo {
     fn process(&mut self, ctx: &AudioContext, inputs: &[Buffer<N>], outputs: &mut [Buffer<N>]) {
@@ -17,16 +27,29 @@ impl<const N: usize> Node<N> for Stereo {
     }
 }
 
+struct StereoPorts {
+    inputs: [Port;1],
+    outputs: [Port; 2]
+}
+impl StereoPorts {
+    pub fn new() -> Self {
+        Self {
+            inputs: [
+                Port {name: "AUDIO", index: 0, behavior: PortBehavior::Default }
+            ],
+            outputs: [
+                Port {name: "L", index: 0, behavior: PortBehavior::Default },
+                Port {name: "R", index: 0, behavior: PortBehavior::Default }
+            ]
+        }
+    }
+}
+
 impl PortedErased for Stereo {
     fn get_inputs(&self) -> &[Port] {
-        &[
-            Port {name: "AUDIO", index: 0, behavior: PortBehavior::Default }
-        ]        
+        &self.ports.inputs    
     }
     fn get_outputs(&self) -> &[Port] {
-                &[
-            Port {name: "L", index: 0, behavior: PortBehavior::Default },
-            Port {name: "R", index: 0, behavior: PortBehavior::Default }
-        ]   
+        &self.ports.outputs
     }
 }

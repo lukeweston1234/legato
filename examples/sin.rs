@@ -2,6 +2,12 @@ use legato::{backend::write_data_cpal, engine::{graph::Connection, runtime::{bui
 use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, Device};
 use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
 
+use assert_no_alloc::*;
+
+#[cfg(debug_assertions)]
+#[global_allocator]
+static A: AllocDisabler = AllocDisabler;
+
 const SAMPLE_RATE: u32 = 48_000;
 const BLOCK_SIZE: usize = 1024;
 const CAPACITY: usize = 16;
@@ -11,7 +17,9 @@ fn run<const N: usize, const C: usize>(device: &Device, config: &StreamConfig, m
     let stream = device.build_output_stream(
         &config,
         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            write_data_cpal::<N, C, f32>(data, &mut runtime)
+            assert_no_alloc(|| {
+                write_data_cpal::<N, C, f32>(data, &mut runtime)
+            })   
         },
         |err| eprintln!("An output stream error occurred: {}", err),
         None,
