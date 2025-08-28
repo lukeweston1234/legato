@@ -108,7 +108,7 @@ where
             Wave::Square => square_amp_from_phase(&self.phase),
             Wave::Triangle => triangle_amp_from_phase(&self.phase),
         };
-        self.phase += self.freq / sample_rate as f32;
+        self.phase += self.freq / sample_rate;
         self.phase -= (self.phase >= 1.0) as u32 as f32; 
         sample
     }
