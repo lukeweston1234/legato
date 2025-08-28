@@ -83,28 +83,6 @@ impl<const N: usize, const C: usize> Runtime<N, C> {
     }
 }
 
-// TODO: Port over proc macro from other repo
-pub enum Nodes {
-    OscMono,
-    OscStereo,
-    Stereo
-}
-
-pub trait RuntimeBuilder {
-    fn add_node_api(&mut self, node: Nodes) -> NodeKey;
-}
-
-impl<const N: usize, const C: usize> RuntimeBuilder for Runtime<N, C> {
-    fn add_node_api(&mut self, node: Nodes) -> NodeKey {
-        let item: Box<dyn Node<N> + Send + 'static> = match node {
-            Nodes::OscMono => Box::new(OscMono::default()),
-            Nodes::OscStereo => Box::new(OscStereo::default()),
-            Nodes::Stereo => Box::new(Stereo::default())
-        };
-        self.add_node(item)
-    }
-}
-
 pub fn build_runtime<const BUFFER_SIZE: usize, const CHANNEL_SIZE: usize>(initial_capacity: usize, sample_rate: u32) -> Runtime<BUFFER_SIZE, CHANNEL_SIZE> {
     let graph = AudioGraph::with_capacity(initial_capacity);
     let context = AudioContext::new(sample_rate);
