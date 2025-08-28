@@ -27,7 +27,7 @@ fn run<const N: usize, const C: usize>(device: &Device, config: &StreamConfig, m
 fn main(){
     let mut runtime: Runtime::<BLOCK_SIZE, CHANNEL_COUNT> = build_runtime(CAPACITY, SAMPLE_RATE);
 
-    let a = runtime.add_node_api(Nodes::Osc);
+    let a = runtime.add_node_api(Nodes::OscMono);
 
     let b = runtime.add_node_api(Nodes::Stereo);
 

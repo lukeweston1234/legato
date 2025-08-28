@@ -1,6 +1,6 @@
 use slotmap::SecondaryMap;
 
-use crate::{engine::{audio_context::AudioContext, buffer::{Buffer, Frame}, graph::{AudioGraph, AudioNode, Connection , GraphError, NodeKey}, node::Node}, nodes::{osc::Oscillator, stereo::Stereo}};
+use crate::{engine::{audio_context::AudioContext, buffer::Buffer, graph::{AudioGraph, AudioNode, Connection , GraphError, NodeKey}, node::Node}, nodes::{osc::{OscMono, OscStereo}, stereo::Stereo}};
 
 // Arbitrary max init. inputs
 const MAX_INITIAL_INPUTS: usize = 8;
@@ -24,7 +24,7 @@ impl<const N: usize, const C: usize> Runtime<N, C> {
         }
     }
     pub fn add_node(&mut self, node: AudioNode<N>) -> NodeKey {
-        let node_source_length = node.get_output_ports().len();
+        let node_source_length = node.get_inputs().len();
         let node_key = self.graph.add_node(node);
 
         self.port_sources.insert(node_key, vec![Buffer::<N>::SILENT; node_source_length]);
@@ -57,7 +57,7 @@ impl<const N: usize, const C: usize> Runtime<N, C> {
             // Clear the nodes, and double check that the size is reserved
             let node = nodes.get_mut(*node_key).expect("Could not find node at index {node_index:?}");
 
-            let input_size = node.get_input_ports().len();
+            let input_size = node.get_inputs().len();
 
             for i in 0..input_size {
                 for n in 0..N {
@@ -85,7 +85,8 @@ impl<const N: usize, const C: usize> Runtime<N, C> {
 
 // TODO: Port over proc macro from other repo
 pub enum Nodes {
-    Osc,
+    OscMono,
+    OscStereo,
     Stereo
 }
 
@@ -96,8 +97,9 @@ pub trait RuntimeBuilder {
 impl<const N: usize, const C: usize> RuntimeBuilder for Runtime<N, C> {
     fn add_node_api(&mut self, node: Nodes) -> NodeKey {
         let item: Box<dyn Node<N> + Send + 'static> = match node {
-            Nodes::Osc => Box::new(Oscillator::default()),
-            Nodes::Stereo => Box::new(Stereo {})
+            Nodes::OscMono => Box::new(OscMono::default()),
+            Nodes::OscStereo => Box::new(OscStereo::default()),
+            Nodes::Stereo => Box::new(Stereo::default())
         };
         self.add_node(item)
     }

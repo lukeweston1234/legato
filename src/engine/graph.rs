@@ -227,36 +227,95 @@ impl<const N: usize> AudioGraph<N> {
 
 #[cfg(test)]
 mod test {
+    use std::ops::Add;
+
+    use typenum::{Sum, Unsigned, U0, U1};
+    use generic_array::{arr, ArrayLength, GenericArray};
+
     use crate::engine::audio_context::AudioContext;
     use crate::engine::buffer::Frame;
     use crate::engine::graph::{AudioGraph, Connection};
     use crate::engine::node::Node;
-    use crate::engine::port::{Port, PortBehavior, Ported};
+    use crate::engine::port::{Mono, Port, PortBehavior, PortedErased};
     use crate::engine::graph::GraphError::CycleDetected;
     
+
     use super::NodeKey;
 
-    #[derive(Default, Debug, PartialEq, Hash)]
-    struct ExampleNode {}
+    pub struct ExamplePorts<Ai, Ci, O>
+    where
+        Ai: Unsigned + Add<Ci>,
+        Ci: Unsigned,
+        O: Unsigned + ArrayLength,
+        Sum<Ai, Ci>: Unsigned + ArrayLength,
+    {
+        pub inputs: GenericArray<Port, Sum<Ai, Ci>>,
+        pub outputs: GenericArray<Port, O>,
+    }
 
-    impl<const I: usize, const O: usize> Ported<I, O> for ExampleNode {
-        fn get_input_ports(&self) -> &'static [Port] {
-            &[Port {
-                name: "AUDIO",
-                behavior: PortBehavior::Default,
-                index: 0,
-            }]
-        }
-        fn get_output_ports(&self) -> &'static [Port] {
-            &[Port {
-                name: "AUDIO",
-                behavior: PortBehavior::Default,
-                index: 0,
-            }]
+    struct ExampleNode<Ai, Ci, O>
+    where
+        Ai: Unsigned + Add<Ci>,
+        Ci: Unsigned,
+        O: Unsigned + ArrayLength,
+        Sum<Ai, Ci>: Unsigned + ArrayLength,
+    {
+        ports: ExamplePorts<Ai, Ci, O>
+    }
+
+    type AudioIn = U1;
+    type ControlIn = U0;
+
+    impl ExamplePorts<AudioIn, ControlIn, Mono> {
+        fn new() -> Self {
+        let inputs = arr![
+            Port { name: "audio",   index: 0, behavior: PortBehavior::Default },
+        ];
+        let outputs = arr![
+            Port { name: "audio", index: 0, behavior: PortBehavior::Default }
+        ];
+            Self {
+                inputs,
+                outputs
+            }
         }
     }
 
-    impl<const N: usize> Node<N> for ExampleNode {
+    type MonoExample = ExampleNode<AudioIn, ControlIn, Mono>;
+
+    impl Default for MonoExample {
+        fn default() -> Self {
+            let ports = ExamplePorts::<AudioIn, ControlIn, Mono>::new();
+            Self {
+                ports
+            }
+        }
+    }
+
+    impl<Ai, Ci, O> PortedErased for ExampleNode<Ai, Ci, O> 
+    where 
+        Ai: Unsigned + Add<Ci>,
+        Ci: Unsigned,
+        O: Unsigned + ArrayLength,
+        Sum<Ai, Ci>: Unsigned + ArrayLength
+    
+    {
+        fn get_inputs(&self) -> &[Port] {
+            &self.ports.inputs
+        }
+        fn get_outputs(&self) -> &[Port] {
+            &self.ports.outputs
+        }
+    }
+    
+
+    impl<const N: usize, Ai, Ci, O> Node<N> for ExampleNode<Ai, Ci, O> 
+    where 
+        Ai: Unsigned + Add<Ci>,
+        Ci: Unsigned,
+        O: Unsigned + ArrayLength,
+        Sum<Ai, Ci>: Unsigned + ArrayLength
+    {
         fn process(&mut self, _ctx: &AudioContext, _inputs: &Frame<N>, _output: &mut Frame<N>) {}
     }
 
@@ -286,9 +345,9 @@ mod test {
     fn test_topo_sort_simple_chain() {
         let mut graph = AudioGraph::<256>::with_capacity(3);
 
-        let a = graph.add_node(Box::new(ExampleNode::default()));
-        let b = graph.add_node(Box::new(ExampleNode::default()));
-        let c = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
+        let b = graph.add_node(Box::new(MonoExample::default()));
+        let c = graph.add_node(Box::new(MonoExample::default()));
 
         graph
             .add_edge(Connection {
@@ -314,9 +373,9 @@ mod test {
     fn test_remove_edges() {
         let mut graph = AudioGraph::<256>::with_capacity(3);
 
-        let a = graph.add_node(Box::new(ExampleNode::default()));
-        let b = graph.add_node(Box::new(ExampleNode::default()));
-        let c = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
+        let b = graph.add_node(Box::new(MonoExample::default()));
+        let c = graph.add_node(Box::new(MonoExample::default()));
 
         let e1 = graph
             .add_edge(Connection {
@@ -362,11 +421,11 @@ mod test {
     fn test_larger_graph_parallel_inputs() {
         let mut graph = AudioGraph::<256>::with_capacity(5);
 
-        let a = graph.add_node(Box::new(ExampleNode::default()));
-        let b = graph.add_node(Box::new(ExampleNode::default()));
-        let c = graph.add_node(Box::new(ExampleNode::default()));
-        let d = graph.add_node(Box::new(ExampleNode::default()));
-        let e = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
+        let b = graph.add_node(Box::new(MonoExample::default()));
+        let c = graph.add_node(Box::new(MonoExample::default()));
+        let d = graph.add_node(Box::new(MonoExample::default()));
+        let e = graph.add_node(Box::new(MonoExample::default()));
 
         graph
             .add_edge(Connection {
@@ -407,8 +466,8 @@ mod test {
     #[test]
     fn test_cycle_detection_two_node_cycle() {
         let mut graph = AudioGraph::<256>::with_capacity(2);
-        let a = graph.add_node(Box::new(ExampleNode::default()));
-        let b = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
+        let b = graph.add_node(Box::new(MonoExample::default()));
 
         let _ = graph
             .add_edge(Connection {
@@ -434,7 +493,7 @@ mod test {
     #[test]
     fn test_cycle_detection_self_loop() {
         let mut graph = AudioGraph::<256>::with_capacity(1);
-        let a = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
         let res = graph.add_edge(Connection { source_key: a, sink_key: a, sink_port_index: 0, source_port_index: 0});
         assert_eq!(res, Err(CycleDetected));
     }
@@ -442,7 +501,7 @@ mod test {
     #[test]
     fn single_node_order(){
         let mut graph = AudioGraph::<256>::with_capacity(1);
-        let a = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
 
         assert_eq!(graph.topo_sorted, vec![a])
     }
@@ -450,9 +509,9 @@ mod test {
     #[test]
     fn test_remove_node_cleans_edges_and_topo() {
         let mut graph = AudioGraph::<256>::with_capacity(3);
-        let a = graph.add_node(Box::new(ExampleNode::default()));
-        let b = graph.add_node(Box::new(ExampleNode::default()));
-        let c = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
+        let b = graph.add_node(Box::new(MonoExample::default()));
+        let c = graph.add_node(Box::new(MonoExample::default()));
 
         graph
             .add_edge(Connection {
@@ -484,11 +543,11 @@ mod test {
     #[test]
     fn test_add_edge_rejects_missing_endpoints() {
         let mut graph = AudioGraph::<256>::with_capacity(2);
-        let a = graph.add_node(Box::new(ExampleNode::default()));
+        let a = graph.add_node(Box::new(MonoExample::default()));
 
         // Spoof a bad key
         let nonexistent_key = {
-            let temp = graph.add_node(Box::new(ExampleNode::default()));
+            let temp = graph.add_node(Box::new(MonoExample::default()));
             let _ = graph.remove_node(temp);
             temp
         };
