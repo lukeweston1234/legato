@@ -35,11 +35,11 @@ impl StereoPorts {
     pub fn new() -> Self {
         Self {
             inputs: [
-                Port {name: "AUDIO", index: 0, behavior: PortBehavior::Default }
+                Port {name: "audio", index: 0, behavior: PortBehavior::Default }
             ],
             outputs: [
-                Port {name: "L", index: 0, behavior: PortBehavior::Default },
-                Port {name: "R", index: 0, behavior: PortBehavior::Default }
+                Port {name: "l", index: 0, behavior: PortBehavior::Default },
+                Port {name: "r", index: 0, behavior: PortBehavior::Default }
             ]
         }
     }

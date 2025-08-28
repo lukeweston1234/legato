@@ -28,7 +28,6 @@ where
     ports: OscillatorPorts<Ai, Ci, O>
 }
 
-
 type AudioIn = U0;
 type ControlIn = U2;
 
@@ -54,7 +53,7 @@ impl OscillatorPorts<AudioIn, ControlIn, Mono> {
             Port { name: "freq", index: 1, behavior: PortBehavior::Default },
         ];
         let outputs = arr![
-            Port { name: "audio", index: 0, behavior: PortBehavior::Default }
+            Port { name: "mono", index: 0, behavior: PortBehavior::Default }
         ];
         Self {
             inputs,
