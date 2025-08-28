@@ -1,3 +1,8 @@
+use std::ops::Add;
+
+use generic_array::{ArrayLength, GenericArray};
+use typenum::{Sum, Unsigned, U0, U1, U2};
+
 use crate::engine::node::Node;
 use crate::engine::audio_context::AudioContext;
 use crate::engine::buffer::{Buffer};
@@ -19,12 +24,12 @@ pub struct Oscillator {
 impl Oscillator {
     const INPUTS: [Port;2] = [
         Port {
-            name: "FM",
+            name: "fm",
             index: 0,
             behavior: PortBehavior::Default, 
         },
         Port {
-            name: "FREQ",
+            name: "freq",
             index: 1,
             behavior: PortBehavior::Default,
         }
@@ -32,7 +37,7 @@ impl Oscillator {
 
     const OUTUTS: [Port; 1] = [
         Port {
-            name: "AUDIO",
+            name: "audio",
             index: 0,
             behavior: PortBehavior::Default,
         }
@@ -83,9 +88,19 @@ impl<const N: usize> Node<N> for Oscillator {
     }
 }
 
-impl Ported for Oscillator {
-    fn get_input_ports(&self) -> &'static [Port] { &Self::INPUTS }
-    fn get_output_ports(&self) -> &'static [Port] { &Self::OUTUTS }
+impl<Ai, Ci, O> Ported<Ai, Ci, O> for Oscillator
+where 
+    Ai: Unsigned + Add<Ci>, 
+    Ci: Unsigned, 
+    O: Unsigned + ArrayLength,
+    Sum<Ai, Ci>: Unsigned + ArrayLength
+{
+    fn get_input_ports(&self) ->  &'static GenericArray<Port, Sum<Ai, Ci>> {
+
+    }
+    fn get_output_ports(&self) -> &'static GenericArray<Port, O> {
+
+    }
 }
 
 

@@ -239,7 +239,7 @@ mod test {
     #[derive(Default, Debug, PartialEq, Hash)]
     struct ExampleNode {}
 
-    impl Ported for ExampleNode {
+    impl<const I: usize, const O: usize> Ported<I, O> for ExampleNode {
         fn get_input_ports(&self) -> &'static [Port] {
             &[Port {
                 name: "AUDIO",

@@ -24,7 +24,6 @@ fn run<const N: usize, const C: usize>(device: &Device, config: &StreamConfig, m
     Ok(())
 }
 
-
 fn main(){
     let mut runtime: Runtime::<BLOCK_SIZE, CHANNEL_COUNT> = build_runtime(CAPACITY, SAMPLE_RATE);
 

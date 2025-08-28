@@ -16,6 +16,8 @@ heapless = "0.8.0"
 portable-atomic = { version = "1.11.1", features = ["float"] }
 arc-swap = "1.7.1"
 slotmap = "1.0.7"
+typenum = "1.18.0"
+generic-array = "1.2.0"
 
 
 [dev-dependencies]
