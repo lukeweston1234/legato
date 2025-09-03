@@ -21,21 +21,6 @@ pub struct Port {
     pub behavior: PortBehavior,
 }
 
-/// A port struct that defines the inputs, and outputs of a node.
-/// 
-/// This can be defined for multiple different shapes and can be generic, 
-/// allowing developers to say make a mono filter, stereo filter, etc.
-// pub struct Ports<Ai, Ci, O>
-// where
-//     Ai: Unsigned + Add<Ci>,
-//     Ci: Unsigned,
-//     O: Unsigned + ArrayLength,
-//     Sum<Ai, Ci>: Unsigned + ArrayLength,
-// {
-//     pub inputs: GenericArray<Port, Sum<Ai, Ci>>,
-//     pub outputs: GenericArray<Port, O>,
-// }
-
 
 pub trait Ported<Ai, Ci, O>
 where

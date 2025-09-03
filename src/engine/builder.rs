@@ -1,4 +1,4 @@
-use crate::{engine::{graph::NodeKey, node::Node, runtime::Runtime}, nodes::{osc::{OscMono, OscStereo}, stereo::Stereo, svf::{SvfMono, SvfStereo}}};
+use crate::{engine::{graph::NodeKey, node::Node, runtime::Runtime}, nodes::{osc::{OscMC, OscMono, OscStereo}, stereo::Stereo, svf::{SvfMono, SvfStereo}}};
 
 // TODO: Port over proc macro from other repo
 pub enum Nodes {

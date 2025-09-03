@@ -33,6 +33,7 @@ type ControlIn = U2;
 
 pub type OscMono = Oscillator<AudioIn, ControlIn, Mono>;
 pub type OscStereo = Oscillator<AudioIn, ControlIn, Stereo>;
+pub type OscMC<C> = Oscillator<C, ControlIn, C>;
 
 pub struct OscillatorPorts<Ai, Ci, O>
 where
@@ -147,7 +148,6 @@ where
         &self.ports.outputs
     }
 }
-
 
 impl Default for OscMono {
     fn default() -> Self {
