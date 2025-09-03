@@ -4,9 +4,9 @@ use typenum::{Sum, Unsigned, U1, U2};
 
 
 /// This will determine how ports audio will fan in and out, etc.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub enum PortBehavior {
-    Default, // Input: Take the first sample, Output: Fill the frame
+    Default, #[default] // Input: Take the first sample, Output: Fill the frame
     Sum,
     SumNormalized,
     Mute,
@@ -14,12 +14,14 @@ pub enum PortBehavior {
 
 /// A basic port with a name and index. The port behavior will eventually
 /// tell the runtime how to handle things like fan-in, fan-out, summing inputs, etc.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct Port {
     pub name: &'static str,
     pub index: usize,
     pub behavior: PortBehavior,
 }
+
+
 
 
 pub trait Ported<Ai, Ci, O>
@@ -33,6 +35,18 @@ where
     fn get_outputs(&self) -> &GenericArray<Port, O>;
 }
 
+pub struct Ports<I, O> where I: ArrayLength, O: ArrayLength {
+    pub inputs: GenericArray<Port, I>,
+    pub outputs: GenericArray<Port, O>
+}
+impl<I, O> Ports<I, O> where I: ArrayLength, O: ArrayLength {
+    pub fn get_inputs(&self) -> &[Port] {
+        self.inputs.as_slice()
+    }
+    pub fn get_outputs(&self) -> &[Port] {
+        self.outputs.as_slice()
+    }
+}
 
 /// A trait allowing us to erase the specific input and output 
 /// types to store them more easily.

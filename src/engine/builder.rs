@@ -1,12 +1,12 @@
-use crate::{engine::{graph::NodeKey, node::Node, runtime::Runtime}, nodes::{osc::{OscMC, OscMono, OscStereo}, stereo::Stereo, svf::{SvfMono, SvfStereo}}};
+use crate::{engine::{graph::NodeKey, node::Node, runtime::Runtime}, nodes::{osc::{OscMono, OscStereo}, stereo::Stereo}};
 
 // TODO: Port over proc macro from other repo
 pub enum Nodes {
     OscMono,
     OscStereo,
     Stereo,
-    SvfMono,
-    SvfStereo
+    // SvfMono,
+    // SvfStereo
 }
 
 pub trait RuntimeBuilder {
@@ -19,8 +19,8 @@ impl<const N: usize, const C: usize> RuntimeBuilder for Runtime<N, C> {
             Nodes::OscMono => Box::new(OscMono::default()),
             Nodes::OscStereo => Box::new(OscStereo::default()),
             Nodes::Stereo => Box::new(Stereo::default()),
-            Nodes::SvfMono => Box::new(SvfMono::default()),
-            Nodes::SvfStereo => Box::new(SvfStereo::default()),
+            // Nodes::SvfMono => Box::new(SvfMono::default()),
+            // Nodes::SvfStereo => Box::new(SvfStereo::default()),
         };
         self.add_node(item)
     }
