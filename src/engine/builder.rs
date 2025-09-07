@@ -1,4 +1,10 @@
-use crate::{engine::{graph::NodeKey, node::Node, runtime::Runtime}, nodes::{osc::{OscMono, OscStereo}, stereo::Stereo}};
+use crate::{
+    engine::{graph::NodeKey, node::Node, runtime::Runtime},
+    nodes::{
+        osc::{OscMono, OscStereo},
+        stereo::Stereo,
+    },
+};
 
 // TODO: Port over proc macro from other repo
 pub enum Nodes {
@@ -13,9 +19,9 @@ pub trait RuntimeBuilder {
     fn add_node_api(&mut self, node: Nodes) -> NodeKey;
 }
 
-impl<const N: usize, const C: usize> RuntimeBuilder for Runtime<N, C> {
+impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder for Runtime<AF, CF, C> {
     fn add_node_api(&mut self, node: Nodes) -> NodeKey {
-        let item: Box<dyn Node<N> + Send + 'static> = match node {
+        let item: Box<dyn Node<AF, CF> + Send + 'static> = match node {
             Nodes::OscMono => Box::new(OscMono::default()),
             Nodes::OscStereo => Box::new(OscStereo::default()),
             Nodes::Stereo => Box::new(Stereo::default()),

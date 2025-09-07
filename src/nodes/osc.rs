@@ -4,10 +4,9 @@ use generic_array::sequence::GenericSequence;
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::{Sum, Unsigned, U0, U2};
 
-use crate::engine::node::Node;
 use crate::engine::audio_context::AudioContext;
-use crate::engine::buffer::{Buffer};
-use crate::engine::port::{Mono, Port, PortBehavior, PortedErased, Ports, Stereo};
+use crate::engine::node::Node;
+use crate::engine::port::{Mono, Port, PortBehavior, PortRate, PortedErased, Ports, Stereo};
 
 pub enum Wave {
     Sin,
@@ -26,7 +25,7 @@ where
     freq: f32,
     phase: f32,
     wave: Wave,
-    ports: Ports<Sum<Ai, Ci>, O>
+    ports: Ports<Sum<Ai, Ci>, O>,
 }
 
 type AudioIn = U0;
@@ -39,30 +38,52 @@ where
 {
     pub fn new(freq: f32, phase: f32, wave: Wave) -> Self {
         let inputs = arr![
-            Port { name: "fm",   index: 0, behavior: PortBehavior::Default },
-            Port { name: "freq", index: 1, behavior: PortBehavior::Default },
+            Port {
+                name: "fm",
+                index: 0,
+                behavior: PortBehavior::Default,
+                rate: PortRate::Audio
+            },
+            Port {
+                name: "freq",
+                index: 1,
+                behavior: PortBehavior::Default,
+                rate: PortRate::Control
+            },
         ];
 
         let outputs: GenericArray<Port, O> = GenericArray::generate(|i| Port {
             name: match O::USIZE {
                 1 => "out",
-                2 => if i == 0 { "l" } else { "r" },
+                2 => {
+                    if i == 0 {
+                        "l"
+                    } else {
+                        "r"
+                    }
+                }
                 _ => "out",
             },
             index: i,
             behavior: PortBehavior::Default,
+            rate: PortRate::Audio,
         });
 
         let ports = Ports { inputs, outputs };
 
-        Self { freq, phase, wave, ports }
+        Self {
+            freq,
+            phase,
+            wave,
+            ports,
+        }
     }
 
     pub fn default() -> Self {
         Self::new(440.0, 0.0, Wave::Sin)
     }
 
-    pub fn set_wave_form(&mut self, wave: Wave){
+    pub fn set_wave_form(&mut self, wave: Wave) {
         self.wave = wave;
     }
 
@@ -75,22 +96,29 @@ where
             Wave::Triangle => triangle_amp_from_phase(&self.phase),
         };
         self.phase += self.freq / sample_rate;
-        self.phase -= (self.phase >= 1.0) as u32 as f32; 
+        self.phase -= (self.phase >= 1.0) as u32 as f32;
         sample
     }
 }
 
-impl<const N: usize, O> Node<N> for Oscillator<U0, U2, O>
-where 
-    O: Unsigned + ArrayLength
+impl<const AF: usize, const CF: usize, O> Node<AF, CF> for Oscillator<U0, U2, O>
+where
+    O: Unsigned + ArrayLength,
 {
-    fn process(&mut self, ctx: &AudioContext , input: &[Buffer<N>], output: &mut [Buffer<N>]) {
-        debug_assert_eq!(input.len(), U2::USIZE);
-        debug_assert_eq!(output.len(), O::USIZE);
+    fn process(
+        &mut self,
+        ctx: &AudioContext,
+        ai: &crate::engine::buffer::Frame<AF>,
+        ao: &mut crate::engine::buffer::Frame<AF>,
+        ci: &crate::engine::buffer::Frame<CF>,
+        co: &mut crate::engine::buffer::Frame<CF>,
+    ) {
+        debug_assert_eq!(ai.len(), U2::USIZE);
+        debug_assert_eq!(ao.len(), O::USIZE);
         let sample_rate = ctx.get_sample_rate();
-        for i in 0..N {
+        for i in 0..AF {
             let sample = self.tick_osc(sample_rate);
-            for buf in output.iter_mut() {
+            for buf in ao.iter_mut() {
                 buf[i] = sample;
             }
         }
@@ -102,7 +130,7 @@ where
     Ai: Unsigned + Add<Ci>,
     Ci: Unsigned,
     O: Unsigned + ArrayLength,
-    Sum<Ai, Ci>: Unsigned + ArrayLength, 
+    Sum<Ai, Ci>: Unsigned + ArrayLength,
 {
     fn get_inputs(&self) -> &[Port] {
         self.ports.get_inputs()

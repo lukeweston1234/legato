@@ -1,52 +1,76 @@
-use crate::engine::{buffer::Buffer, node::Node, port::{Port, PortBehavior, PortedErased}};
 use crate::engine::audio_context::AudioContext;
+use crate::engine::port::PortRate;
+use crate::engine::{
+    node::Node,
+    port::{Port, PortBehavior, PortedErased},
+};
 
 pub struct Stereo {
-    ports: StereoPorts
+    ports: StereoPorts,
 }
 
 impl Default for Stereo {
     fn default() -> Self {
         Self {
-            ports: StereoPorts::new()
+            ports: StereoPorts::new(),
         }
     }
 }
 
-impl<const N: usize> Node<N> for Stereo {
-    fn process(&mut self, _: &AudioContext, inputs: &[Buffer<N>], outputs: &mut [Buffer<N>]) {
-        debug_assert_eq!(inputs.len(), 1);
-        debug_assert_eq!(outputs.len(), 2);
+impl<'a, const AF: usize, const CF: usize> Node<AF, CF> for Stereo {
+    fn process(
+        &mut self,
+        ctx: &AudioContext,
+        ai: &crate::engine::buffer::Frame<AF>,
+        ao: &mut crate::engine::buffer::Frame<AF>,
+        ci: &crate::engine::buffer::Frame<CF>,
+        co: &mut crate::engine::buffer::Frame<CF>,
+    ) {
+        debug_assert_eq!(ai.len(), 1);
+        debug_assert_eq!(ao.len(), 2);
 
-        for n in 0..N {
+        for n in 0..AF {
             for c in 0..2 {
-                outputs[c][n] = inputs[0][n];
+                ao[c][n] = ai[0][n];
             }
         }
     }
 }
 
 struct StereoPorts {
-    inputs: [Port;1],
-    outputs: [Port; 2]
+    inputs: [Port; 1],
+    outputs: [Port; 2],
 }
 impl StereoPorts {
     pub fn new() -> Self {
         Self {
-            inputs: [
-                Port {name: "audio", index: 0, behavior: PortBehavior::Default }
-            ],
+            inputs: [Port {
+                name: "audio",
+                index: 0,
+                behavior: PortBehavior::Default,
+                rate: PortRate::Audio,
+            }],
             outputs: [
-                Port {name: "l", index: 0, behavior: PortBehavior::Default },
-                Port {name: "r", index: 0, behavior: PortBehavior::Default }
-            ]
+                Port {
+                    name: "l",
+                    index: 0,
+                    behavior: PortBehavior::Default,
+                    rate: PortRate::Audio,
+                },
+                Port {
+                    name: "r",
+                    index: 0,
+                    behavior: PortBehavior::Default,
+                    rate: PortRate::Audio,
+                },
+            ],
         }
     }
 }
 
 impl PortedErased for Stereo {
     fn get_inputs(&self) -> &[Port] {
-        &self.ports.inputs    
+        &self.ports.inputs
     }
     fn get_outputs(&self) -> &[Port] {
         &self.ports.outputs

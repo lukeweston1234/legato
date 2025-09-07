@@ -1,13 +1,13 @@
-use std::collections::VecDeque;
+use crate::engine::node::Node;
 use indexmap::IndexSet;
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
-use crate::engine::node::Node;
+use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq)]
 pub enum GraphError {
     BadConnection,
     CycleDetected,
-    NodeDoesNotExist
+    NodeDoesNotExist,
 }
 
 new_key_type! { pub struct NodeKey; }
@@ -22,11 +22,11 @@ pub struct Connection {
 
 const MAXIMUM_INPUTS: usize = 8;
 
-pub type AudioNode<const N: usize> = Box<dyn Node<N> + Send>;
+pub type AudioNode<const AF: usize, const CF: usize> = Box<dyn Node<AF, CF> + Send>;
 
 /// A DAG for grabbing nodes and their dependencies via topological sort.
-pub struct AudioGraph<const N: usize> {
-    nodes: SlotMap<NodeKey, AudioNode<N>>,
+pub struct AudioGraph<const AF: usize, const CF: usize> {
+    nodes: SlotMap<NodeKey, AudioNode<AF, CF>>,
     incoming_edges: SecondaryMap<NodeKey, IndexSet<Connection>>,
     outgoing_edges: SecondaryMap<NodeKey, IndexSet<Connection>>,
     // Pre-allocated work buffers for topo sort
@@ -35,21 +35,20 @@ pub struct AudioGraph<const N: usize> {
     topo_sorted: Vec<NodeKey>,
 }
 
-impl<const N: usize> AudioGraph<N> {
+impl<const AF: usize, const CF: usize> AudioGraph<AF, CF> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             nodes: SlotMap::with_capacity_and_key(capacity),
             incoming_edges: SecondaryMap::with_capacity(capacity),
             outgoing_edges: SecondaryMap::with_capacity(capacity),
             // Pre-allocated work buffers for topo sort
-
             indegree: SecondaryMap::with_capacity(capacity),
             no_incoming_edges_queue: VecDeque::with_capacity(capacity),
             topo_sorted: Vec::with_capacity(capacity),
         }
     }
 
-    pub fn add_node(&mut self, node: AudioNode<N>) -> NodeKey {
+    pub fn add_node(&mut self, node: AudioNode<AF, CF>) -> NodeKey {
         let key = self.nodes.insert(node);
         self.indegree.insert(key, 0);
         self.incoming_edges
@@ -67,12 +66,12 @@ impl<const N: usize> AudioGraph<N> {
     }
 
     #[inline(always)]
-    pub fn get_node(&self, key: NodeKey) -> Option<&AudioNode<N>> {
+    pub fn get_node(&self, key: NodeKey) -> Option<&AudioNode<AF, CF>> {
         self.nodes.get(key)
     }
 
     #[inline(always)]
-    pub fn get_node_mut(&mut self, key: &NodeKey) -> Option<&mut AudioNode<N>> {
+    pub fn get_node_mut(&mut self, key: &NodeKey) -> Option<&mut AudioNode<AF, CF>> {
         self.nodes.get_mut(*key)
     }
 
@@ -80,12 +79,18 @@ impl<const N: usize> AudioGraph<N> {
         self.nodes.len()
     }
 
-    pub fn get_nodes_and_runtime_info(&mut self) -> (&Vec<NodeKey>, &mut SlotMap<NodeKey, AudioNode<N>>, &SecondaryMap<NodeKey, IndexSet<Connection>>) {
+    pub fn get_nodes_and_runtime_info(
+        &mut self,
+    ) -> (
+        &Vec<NodeKey>,
+        &mut SlotMap<NodeKey, AudioNode<AF, CF>>,
+        &SecondaryMap<NodeKey, IndexSet<Connection>>,
+    ) {
         (&self.topo_sorted, &mut self.nodes, &self.incoming_edges)
     }
 
     /// Removes a node and all edges incident to it.
-    pub fn remove_node(&mut self, key: NodeKey) -> Option<AudioNode<N>> {
+    pub fn remove_node(&mut self, key: NodeKey) -> Option<AudioNode<AF, CF>> {
         if !self.nodes.contains_key(key) {
             return None;
         }
@@ -166,7 +171,9 @@ impl<const N: usize> AudioGraph<N> {
             None => return Err(GraphError::BadConnection),
         }
         if adj_remove_status {
-            let _ = self.invalidate_topo_sort().map_err(|_| GraphError::BadConnection);
+            let _ = self
+                .invalidate_topo_sort()
+                .map_err(|_| GraphError::BadConnection);
             Ok(())
         } else {
             Err(GraphError::BadConnection)
@@ -229,16 +236,14 @@ impl<const N: usize> AudioGraph<N> {
 mod test {
     use std::ops::Add;
 
-    use typenum::{Sum, Unsigned, U0, U1};
     use generic_array::{arr, ArrayLength, GenericArray};
+    use typenum::{Sum, Unsigned, U0, U1};
 
     use crate::engine::audio_context::AudioContext;
-    use crate::engine::buffer::Frame;
+    use crate::engine::graph::GraphError::CycleDetected;
     use crate::engine::graph::{AudioGraph, Connection};
     use crate::engine::node::Node;
-    use crate::engine::port::{Mono, Port, PortBehavior, PortedErased};
-    use crate::engine::graph::GraphError::CycleDetected;
-    
+    use crate::engine::port::{Mono, Port, PortBehavior, PortRate, PortedErased};
 
     use super::NodeKey;
 
@@ -260,7 +265,7 @@ mod test {
         O: Unsigned + ArrayLength,
         Sum<Ai, Ci>: Unsigned + ArrayLength,
     {
-        ports: ExamplePorts<Ai, Ci, O>
+        ports: ExamplePorts<Ai, Ci, O>,
     }
 
     type AudioIn = U1;
@@ -268,16 +273,19 @@ mod test {
 
     impl ExamplePorts<AudioIn, ControlIn, Mono> {
         fn new() -> Self {
-        let inputs = arr![
-            Port { name: "audio",   index: 0, behavior: PortBehavior::Default },
-        ];
-        let outputs = arr![
-            Port { name: "audio", index: 0, behavior: PortBehavior::Default }
-        ];
-            Self {
-                inputs,
-                outputs
-            }
+            let inputs = arr![Port {
+                name: "audio",
+                index: 0,
+                behavior: PortBehavior::Default,
+                rate: PortRate::Audio
+            },];
+            let outputs = arr![Port {
+                name: "audio",
+                index: 0,
+                behavior: PortBehavior::Default,
+                rate: PortRate::Audio
+            }];
+            Self { inputs, outputs }
         }
     }
 
@@ -286,19 +294,16 @@ mod test {
     impl Default for MonoExample {
         fn default() -> Self {
             let ports = ExamplePorts::<AudioIn, ControlIn, Mono>::new();
-            Self {
-                ports
-            }
+            Self { ports }
         }
     }
 
-    impl<Ai, Ci, O> PortedErased for ExampleNode<Ai, Ci, O> 
-    where 
+    impl<Ai, Ci, O> PortedErased for ExampleNode<Ai, Ci, O>
+    where
         Ai: Unsigned + Add<Ci>,
         Ci: Unsigned,
         O: Unsigned + ArrayLength,
-        Sum<Ai, Ci>: Unsigned + ArrayLength
-    
+        Sum<Ai, Ci>: Unsigned + ArrayLength,
     {
         fn get_inputs(&self) -> &[Port] {
             &self.ports.inputs
@@ -307,35 +312,36 @@ mod test {
             &self.ports.outputs
         }
     }
-    
 
-    impl<const N: usize, Ai, Ci, O> Node<N> for ExampleNode<Ai, Ci, O> 
-    where 
+    impl<const AF: usize, const CF: usize, Ai, Ci, O> Node<AF, CF> for ExampleNode<Ai, Ci, O>
+    where
         Ai: Unsigned + Add<Ci>,
         Ci: Unsigned,
         O: Unsigned + ArrayLength,
-        Sum<Ai, Ci>: Unsigned + ArrayLength
+        Sum<Ai, Ci>: Unsigned + ArrayLength,
     {
-        fn process(&mut self, _ctx: &AudioContext, _inputs: &Frame<N>, _output: &mut Frame<N>) {}
+        fn process(
+            &mut self,
+            _ctx: &AudioContext,
+            _ai: &crate::engine::buffer::Frame<AF>,
+            _ao: &mut crate::engine::buffer::Frame<AF>,
+            _ci: &crate::engine::buffer::Frame<CF>,
+            _co: &mut crate::engine::buffer::Frame<CF>,
+        ) {
+        }
     }
 
-    fn assert_is_valid_topo<const N: usize>(g: &mut AudioGraph<N>) {
+    fn assert_is_valid_topo<const AF: usize, const CF: usize>(g: &mut AudioGraph<AF, CF>) {
         let order = g.invalidate_topo_sort().expect("Could not get topo order");
 
         use std::collections::HashMap;
-        let pos: HashMap<NodeKey, usize> = HashMap::<NodeKey, usize>::from_iter(
-            order
-            .iter()
-            .enumerate()
-            .map(|(i, v)| { (*v,i) })
-        );
+        let pos: HashMap<NodeKey, usize> =
+            HashMap::<NodeKey, usize>::from_iter(order.iter().enumerate().map(|(i, v)| (*v, i)));
 
         for (src, outs) in &g.outgoing_edges {
             for con in outs.iter() {
                 let i = *pos.get(&src).expect("missing src");
-                let j = *pos
-                    .get(&con.sink_key)
-                    .expect("missing sink");
+                let j = *pos.get(&con.sink_key).expect("missing sink");
                 assert!(i < j, "edge violates topological order");
             }
         }
@@ -343,7 +349,7 @@ mod test {
 
     #[test]
     fn test_topo_sort_simple_chain() {
-        let mut graph = AudioGraph::<256>::with_capacity(3);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -371,7 +377,7 @@ mod test {
 
     #[test]
     fn test_remove_edges() {
-        let mut graph = AudioGraph::<256>::with_capacity(3);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -419,7 +425,7 @@ mod test {
 
     #[test]
     fn test_larger_graph_parallel_inputs() {
-        let mut graph = AudioGraph::<256>::with_capacity(5);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(5);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -465,7 +471,7 @@ mod test {
 
     #[test]
     fn test_cycle_detection_two_node_cycle() {
-        let mut graph = AudioGraph::<256>::with_capacity(2);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(2);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
 
@@ -478,13 +484,12 @@ mod test {
             })
             .unwrap();
         // Bad edge, contains Err from cycle
-        let _ = graph
-            .add_edge(Connection {
-                source_key: b,
-                sink_key: a,
-                sink_port_index: 0,
-                source_port_index: 0,
-            });
+        let _ = graph.add_edge(Connection {
+            source_key: b,
+            sink_key: a,
+            sink_port_index: 0,
+            source_port_index: 0,
+        });
 
         let res = graph.invalidate_topo_sort();
         assert_eq!(res, Err(CycleDetected));
@@ -492,15 +497,20 @@ mod test {
 
     #[test]
     fn test_cycle_detection_self_loop() {
-        let mut graph = AudioGraph::<256>::with_capacity(1);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(1);
         let a = graph.add_node(Box::new(MonoExample::default()));
-        let res = graph.add_edge(Connection { source_key: a, sink_key: a, sink_port_index: 0, source_port_index: 0});
+        let res = graph.add_edge(Connection {
+            source_key: a,
+            sink_key: a,
+            sink_port_index: 0,
+            source_port_index: 0,
+        });
         assert_eq!(res, Err(CycleDetected));
     }
-    
+
     #[test]
-    fn single_node_order(){
-        let mut graph = AudioGraph::<256>::with_capacity(1);
+    fn single_node_order() {
+        let mut graph = AudioGraph::<256, 16>::with_capacity(1);
         let a = graph.add_node(Box::new(MonoExample::default()));
 
         assert_eq!(graph.topo_sorted, vec![a])
@@ -508,7 +518,7 @@ mod test {
 
     #[test]
     fn test_remove_node_cleans_edges_and_topo() {
-        let mut graph = AudioGraph::<256>::with_capacity(3);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
         let c = graph.add_node(Box::new(MonoExample::default()));
@@ -542,7 +552,7 @@ mod test {
 
     #[test]
     fn test_add_edge_rejects_missing_endpoints() {
-        let mut graph = AudioGraph::<256>::with_capacity(2);
+        let mut graph = AudioGraph::<256, 16>::with_capacity(2);
         let a = graph.add_node(Box::new(MonoExample::default()));
 
         // Spoof a bad key
@@ -557,6 +567,9 @@ mod test {
             sink_port_index: 0,
             source_port_index: 0,
         });
-        assert_eq!(res.unwrap_err(), crate::engine::graph::GraphError::BadConnection);
+        assert_eq!(
+            res.unwrap_err(),
+            crate::engine::graph::GraphError::BadConnection
+        );
     }
 }
