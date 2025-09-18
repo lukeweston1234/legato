@@ -12,11 +12,10 @@ pub enum MultipleInputBehavior {
     Mute,
 }
 
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum SampleAlg {
     UpSample(UpsampleAlg),
-    DownSample(DownsampleAlg)
+    DownSample(DownsampleAlg),
 }
 impl Default for SampleAlg {
     fn default() -> Self {
@@ -31,11 +30,11 @@ pub struct PortMeta {
 }
 
 /// Ports are responsible to present the preferred algorithm for up and down sampling.
-/// 
-/// For instance, if a user connects a lower fidelity control rate LFO to an audio rate, 
+///
+/// For instance, if a user connects a lower fidelity control rate LFO to an audio rate,
 /// it would likely be better to do something like a filter, lerp, etc. than sample and hold.
-/// 
-/// Similarly, something really sensitive to clock values should take the first or last 
+///
+/// Similarly, something really sensitive to clock values should take the first or last
 /// sample, as opposed to taking an average.
 
 pub struct AudioInputPort {
@@ -46,7 +45,7 @@ pub struct AudioInputPort {
 pub struct AudioOutputPort {
     pub meta: PortMeta,
 }
-pub struct  ControlInputPort {
+pub struct ControlInputPort {
     pub meta: PortMeta,
     pub input_behavior: MultipleInputBehavior,
     pub resample: DownsampleAlg,
@@ -55,7 +54,7 @@ pub struct ControlOutputPort {
     pub meta: PortMeta,
 }
 
-/// Ports can specify how the incoming signal should be resampled for audio. 
+/// Ports can specify how the incoming signal should be resampled for audio.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Hash)]
 pub enum UpsampleAlg {
     #[default]
@@ -67,17 +66,16 @@ pub enum UpsampleAlg {
 pub enum PortRate {
     #[default]
     Audio,
-    Control
+    Control,
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Hash)]
 pub enum DownsampleAlg {
     #[default]
     FirstSample, // First sample
-    // LastSample, // Lowest latency
-    // Average,
-    // TODO: one pole filter, more options?
+                 // LastSample, // Lowest latency
+                 // Average,
+                 // TODO: one pole filter, more options?
 }
 
 pub trait Ported<Ai, Ao, Ci, Co>
@@ -98,19 +96,19 @@ where
     Ai: ArrayLength,
     Ao: ArrayLength,
     Ci: ArrayLength,
-    Co: ArrayLength
+    Co: ArrayLength,
 {
     pub audio_inputs: Option<GenericArray<AudioInputPort, Ai>>,
     pub audio_outputs: Option<GenericArray<AudioOutputPort, Ao>>,
     pub control_inputs: Option<GenericArray<ControlInputPort, Ci>>,
-    pub control_outputs: Option<GenericArray<ControlOutputPort, Co>>,   
+    pub control_outputs: Option<GenericArray<ControlOutputPort, Co>>,
 }
 impl<Ai, Ao, Ci, Co> Ports<Ai, Ao, Ci, Co>
 where
     Ai: ArrayLength,
     Ao: ArrayLength,
     Ci: ArrayLength,
-    Co: ArrayLength
+    Co: ArrayLength,
 {
     pub fn get_audio_inputs(&self) -> Option<&[AudioInputPort]> {
         self.audio_inputs.as_deref()

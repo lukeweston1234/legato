@@ -5,10 +5,13 @@ use typenum::U0;
 
 use crate::{
     engine::{
+        audio_context::AudioContext,
         buffer::Frame,
-        graph::AudioNode,
         node::Node,
-        port::{MultipleInputBehavior, Ports, UpsampleAlg},
+        port::{
+            AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort,
+            MultipleInputBehavior, PortedErased, Ports, UpsampleAlg,
+        },
     },
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
 };
@@ -117,12 +120,34 @@ where
 {
     fn process(
         &mut self,
-        ctx: &crate::engine::audio_context::AudioContext,
+        _: &AudioContext,
         ai: &Frame<AF>,
-        ao: &mut Frame<AF>,
-        ci: &Frame<CF>,
-        co: &mut Frame<CF>,
+        _: &mut Frame<AF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
     ) {
+        // Single threaded, no aliasing read/writes in the graph. Reference counted so no leaks.
+        unsafe {
+            (&mut *self.delay_line.get()).write_block(ai);
+        }
+    }
+}
+
+impl<const AF: usize, Ai> PortedErased for DelayWrite<AF, Ai>
+where
+    Ai: ArrayLength,
+{
+    fn get_audio_inputs(&self) -> Option<&[crate::engine::port::AudioInputPort]> {
+        self.ports.get_audio_inputs()
+    }
+    fn get_audio_outputs(&self) -> Option<&[crate::engine::port::AudioOutputPort]> {
+        self.ports.get_audio_outputs()
+    }
+    fn get_control_inputs(&self) -> Option<&[crate::engine::port::ControlInputPort]> {
+        self.ports.get_control_inputs()
+    }
+    fn get_control_outputs(&self) -> Option<&[crate::engine::port::ControlOutputPort]> {
+        self.ports.get_control_outputs()
     }
 }
 
@@ -149,5 +174,47 @@ where
                 control_outputs: None,
             },
         }
+    }
+}
+
+impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for DelayRead<AF, Ao>
+where
+    Ao: ArrayLength,
+{
+    fn process(
+        &mut self,
+        _: &AudioContext,
+        _: &Frame<AF>,
+        ao: &mut Frame<AF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
+    ) {
+        debug_assert_eq!(Ao::USIZE, ao.len());
+        for n in 0..AF {
+            for c in 0..Ao::USIZE {
+                unsafe {
+                    ao[c][n] =
+                        (*self.delay_line.get()).get_delay_linear_interp(c, self.delay_times[c])
+                }
+            }
+        }
+    }
+}
+
+impl<const AF: usize, Ao> PortedErased for DelayRead<AF, Ao>
+where
+    Ao: ArrayLength,
+{
+    fn get_audio_inputs(&self) -> Option<&[AudioInputPort]> {
+        self.ports.get_audio_inputs()
+    }
+    fn get_audio_outputs(&self) -> Option<&[AudioOutputPort]> {
+        self.ports.get_audio_outputs()
+    }
+    fn get_control_inputs(&self) -> Option<&[ControlInputPort]> {
+        self.ports.get_control_inputs()
+    }
+    fn get_control_outputs(&self) -> Option<&[ControlOutputPort]> {
+        self.ports.get_control_outputs()
     }
 }
