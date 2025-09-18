@@ -21,8 +21,8 @@ static A: AllocDisabler = AllocDisabler;
 
 // TODO: We configure this somewhere?
 
-const SAMPLE_RATE: u32 = 48_000;
-const BLOCK_SIZE: usize = 1024;
+const SAMPLE_RATE: u32 = 44_100;
+const BLOCK_SIZE: usize = 2048;
 
 const DECIMATION_FACTOR: f32 = 32.0;
 
@@ -58,9 +58,13 @@ fn main() {
     let mut runtime: Runtime<BLOCK_SIZE, CONTROL_FRAME_SIZE, CHANNEL_COUNT> =
         build_runtime(CAPACITY, SAMPLE_RATE as f32, CONTROL_RATE);
 
-    let a = runtime.add_node_api(Nodes::OscMono);
+    let a = runtime
+        .add_node_api(Nodes::OscMono, None)
+        .expect("Could not add node");
 
-    let b = runtime.add_node_api(Nodes::Stereo);
+    let b = runtime
+        .add_node_api(Nodes::Stereo, None)
+        .expect("Could not add node");
 
     let _ = runtime.add_edge(Connection {
         source: ConnectionEntry {

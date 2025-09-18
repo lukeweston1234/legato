@@ -7,21 +7,15 @@ use cpal::{
 };
 use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
 use legato::{
-    backend,
-    engine::{
-        builder::{NodeProps, RuntimeBuilder},
-        graph::ConnectionEntry,
-        port::PortRate,
-    },
-    nodes::audio::sampler::{AudioSampleBackend, Sampler},
-};
-use legato::{
     backend::write_data_cpal,
     engine::{
         builder::Nodes,
-        graph::Connection,
         runtime::{build_runtime, Runtime},
     },
+};
+use legato::{
+    engine::builder::{NodeProps, RuntimeBuilder},
+    nodes::audio::sampler::AudioSampleBackend,
 };
 
 use assert_no_alloc::*;
