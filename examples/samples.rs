@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::UnsafeCell, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use cpal::{
@@ -9,9 +9,8 @@ use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
 use legato::{
     backend::write_data_cpal,
     engine::{
-        builder::Nodes,
-        runtime::{build_runtime, Runtime},
-    },
+        builder::Nodes, graph::{Connection, ConnectionEntry}, port::{PortRate, Stereo}, runtime::{build_runtime, Runtime}
+    }, nodes::audio::delay::DelayLine,
 };
 use legato::{
     engine::builder::{NodeProps, RuntimeBuilder},
@@ -26,8 +25,8 @@ static A: AllocDisabler = AllocDisabler;
 
 // TODO: We configure this somewhere?
 
-const SAMPLE_RATE: u32 = 44_100;
-const BLOCK_SIZE: usize = 2048;
+const SAMPLE_RATE: u32 = 48_000;
+const BLOCK_SIZE: usize = 1024;
 
 const DECIMATION_FACTOR: f32 = 32.0;
 
@@ -76,6 +75,32 @@ fn main() {
         .expect("Could not add sampler");
 
     let _ = backend.load_file("./samples/amen.wav");
+
+    let delay_line = Arc::new(UnsafeCell::new(DelayLine::<BLOCK_SIZE, Stereo>::new(48_000 * 3)));
+
+    let delay_write = runtime.add_node_api(Nodes::DelayWriteStereo, Some(NodeProps::DelayWriteStereo { delay_line: delay_line.clone() })).unwrap();
+    let delay_read = runtime.add_node_api(Nodes::DelayReadStereo, Some(NodeProps::DelayReadStereo { delay_line: delay_line.clone() })).unwrap();
+
+    let _ = runtime.add_edge(Connection { 
+        source: ConnectionEntry 
+        { 
+            node_key: sampler, 
+            port_index: 0, 
+            port_rate: PortRate::Audio 
+        },
+        sink: ConnectionEntry { node_key: delay_write, port_index: 0, port_rate: PortRate::Audio }
+    });
+
+    let _ = runtime.add_edge(Connection { 
+        source: ConnectionEntry 
+        { 
+            node_key: sampler, 
+            port_index: 1, 
+            port_rate: PortRate::Audio 
+        },
+        sink: ConnectionEntry { node_key: delay_write, port_index: 1, port_rate: PortRate::Audio }
+    });
+
 
     runtime.set_sink_key(sampler).expect("Bad sink key!");
 

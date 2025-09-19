@@ -1,4 +1,5 @@
 use slotmap::SecondaryMap;
+use typenum::U32;
 
 use crate::engine::{
     audio_context::AudioContext,
@@ -8,7 +9,7 @@ use crate::engine::{
 };
 
 // Arbitrary max init. inputs
-const MAX_INITIAL_INPUTS: usize = 8;
+pub const MAX_INITIAL_INPUTS: usize = 32;
 
 pub struct Runtime<const AF: usize, const CF: usize, const CHANNELS: usize> {
     // Audio context containing sample rate, control rate, etc.

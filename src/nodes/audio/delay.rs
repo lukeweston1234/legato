@@ -9,8 +9,7 @@ use crate::{
         buffer::Frame,
         node::Node,
         port::{
-            AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort,
-            MultipleInputBehavior, PortedErased, Ports, UpsampleAlg,
+            AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono, MultipleInputBehavior, PortedErased, Ports, Stereo, UpsampleAlg
         },
     },
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
@@ -75,7 +74,7 @@ where
         let read_pos = (self.write_pos as f32 - offset).rem_euclid(self.capacity as f32);
 
         let pos_floor = read_pos.floor() as usize;
-        let next_sample = (pos_floor + 1) % self.capacity;
+        let next_sample = (pos_floor + 1) % self.capacity; // TODO: can we have some sort of mask if we make the delay a power of 2?
 
         let buffer = &self.buffers[channel];
 
@@ -87,7 +86,7 @@ where
     }
 }
 
-struct DelayWrite<const AF: usize, Ai>
+pub struct DelayWrite<const AF: usize, Ai>
 where
     Ai: ArrayLength,
 {
@@ -126,7 +125,7 @@ where
         _: &Frame<CF>,
         _: &mut Frame<CF>,
     ) {
-        // Single threaded, no aliasing read/writes in the graph. Reference counted so no leaks.
+        // Single threaded, no aliasing read/writes in the graph. Reference counted so no leaks. Hopefully safe.
         unsafe {
             (&mut *self.delay_line.get()).write_block(ai);
         }
@@ -151,7 +150,7 @@ where
     }
 }
 
-struct DelayRead<const AF: usize, Ao>
+pub struct DelayRead<const AF: usize, Ao>
 where
     Ao: ArrayLength,
 {
@@ -166,16 +165,17 @@ where
     pub fn new(delay_line: Arc<UnsafeCell<DelayLine<AF, Ao>>>) -> Self {
         Self {
             delay_line,
-            delay_times: GenericArray::generate(|_| 0.0),
+            delay_times: GenericArray::generate(|_| 300.0), // Default 300ms for now
             ports: Ports {
                 audio_inputs: None,
                 audio_outputs: Some(generate_audio_outputs()),
-                control_inputs: None,
+                control_inputs: None, // TODO: modulate delay times per channel
                 control_outputs: None,
             },
         }
     }
 }
+
 
 impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for DelayRead<AF, Ao>
 where
@@ -183,7 +183,7 @@ where
 {
     fn process(
         &mut self,
-        _: &AudioContext,
+        ctx: &AudioContext,
         _: &Frame<AF>,
         ao: &mut Frame<AF>,
         _: &Frame<CF>,
@@ -193,8 +193,9 @@ where
         for n in 0..AF {
             for c in 0..Ao::USIZE {
                 unsafe {
+                    // Read delay line based on per channel delay time. Must cast to sample index.
                     ao[c][n] =
-                        (*self.delay_line.get()).get_delay_linear_interp(c, self.delay_times[c])
+                        (*self.delay_line.get()).get_delay_linear_interp(c, (self.delay_times[c] / 1000.0) * ctx.get_sample_rate());
                 }
             }
         }
@@ -218,3 +219,16 @@ where
         self.ports.get_control_outputs()
     }
 }
+
+unsafe impl<const AF: usize, C> Send for DelayRead<AF, C> where C: ArrayLength {}
+unsafe impl<const AF: usize, C> Sync for DelayRead<AF, C> where C: ArrayLength {}
+
+unsafe impl<const AF: usize, C> Send for DelayWrite<AF, C> where C: ArrayLength {}
+unsafe impl<const AF: usize, C> Sync for DelayWrite<AF, C> where C: ArrayLength {}
+
+
+pub type DelayReadMono<const AF: usize> = DelayRead<AF, Mono>;
+pub type DelayReadStereo<const AF: usize> = DelayRead<AF, Stereo>;
+
+pub type DelayWriteMono<const AF: usize> = DelayWrite<AF, Mono>;
+pub type DelayWriteStereo<const AF: usize> = DelayWrite<AF, Stereo>;

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::UnsafeCell, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use generic_array::GenericArray;
@@ -6,9 +6,7 @@ use generic_array::GenericArray;
 use crate::{
     engine::{graph::NodeKey, node::Node, runtime::Runtime},
     nodes::audio::{
-        osc::{OscMono, OscStereo},
-        sampler::{SamplerMono, SamplerStereo},
-        stereo::Stereo,
+        delay::{DelayLine, DelayReadMono, DelayReadStereo}, osc::{OscMono, OscStereo}, sampler::{SamplerMono, SamplerStereo}, stereo::Stereo
     },
 };
 
@@ -21,16 +19,33 @@ pub enum Nodes {
     Stereo,
     SamplerMono,
     SamplerStereo,
+    // Delays
+    DelayWriteMono,
+    DelayWriteStereo,
+    DelayReadMono,
+    DelayReadStereo
     // SvfMono,
     // SvfStereo
 }
 
-pub enum NodeProps {
+pub enum NodeProps<const AF: usize> {
     SamplerMono {
         sample: Arc<ArcSwapOption<GenericArray<Vec<f32>, U1>>>,
     },
     SamplerStereo {
         sample: Arc<ArcSwapOption<GenericArray<Vec<f32>, U2>>>,
+    },
+    DelayWriteMono {
+        delay_line: Arc<UnsafeCell<DelayLine<AF, U1>>>
+    },
+    DelayWriteStereo {
+        delay_line: Arc<UnsafeCell<DelayLine<AF, U2>>>
+    },
+    DelayReadMono {
+        delay_line: Arc<UnsafeCell<DelayLine<AF, U1>>>
+    },
+    DelayReadStereo {
+        delay_line: Arc<UnsafeCell<DelayLine<AF, U2>>>
     },
 }
 
@@ -39,19 +54,19 @@ pub enum BuilderError {
     InvalidProps,
 }
 
-pub trait RuntimeBuilder {
+pub trait RuntimeBuilder<const AF: usize> {
     fn add_node_api(
         &mut self,
         node: Nodes,
-        props: Option<NodeProps>,
+        props: Option<NodeProps<AF>>,
     ) -> Result<NodeKey, BuilderError>;
 }
 
-impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder for Runtime<AF, CF, C> {
+impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Runtime<AF, CF, C> {
     fn add_node_api(
         &mut self,
         node: Nodes,
-        props: Option<NodeProps>,
+        props: Option<NodeProps<AF>>,
     ) -> Result<NodeKey, BuilderError> {
         let node_created: Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError> = match node
         {
@@ -79,7 +94,51 @@ impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder for Runtim
                 } else {
                     Err(BuilderError::InvalidProps)
                 }
-            }
+            },
+            Nodes::DelayReadMono => {
+                if let Some(item) = props {
+                    match item {
+                        NodeProps::DelayReadMono { delay_line } => Ok(Box::new(DelayReadMono::new(delay_line))),
+                        _ => Err(BuilderError::InvalidProps),
+                    }
+                }
+                else {
+                    Err(BuilderError::InvalidProps)
+                }
+            },
+            Nodes::DelayReadStereo => {
+                if let Some(item) = props {
+                    match item {
+                        NodeProps::DelayReadStereo { delay_line } => Ok(Box::new(DelayReadStereo::new(delay_line))),
+                        _ => Err(BuilderError::InvalidProps),
+                    }
+                }
+                else {
+                    Err(BuilderError::InvalidProps)
+                }
+            },
+            Nodes::DelayWriteMono => {
+                if let Some(item) = props {
+                    match item {
+                        NodeProps::DelayReadMono { delay_line } => Ok(Box::new(DelayReadMono::new(delay_line))),
+                        _ => Err(BuilderError::InvalidProps),
+                    }
+                }
+                else {
+                    Err(BuilderError::InvalidProps)
+                }
+            },
+            Nodes::DelayWriteStereo => {
+                if let Some(item) = props {
+                    match item {
+                        NodeProps::DelayReadStereo { delay_line } => Ok(Box::new(DelayReadStereo::new(delay_line))),
+                        _ => Err(BuilderError::InvalidProps),
+                    }
+                }
+                else {
+                    Err(BuilderError::InvalidProps)
+                }
+            },
         };
         match node_created {
             Ok(node) => Ok(self.add_node(node)),

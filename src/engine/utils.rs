@@ -2,6 +2,8 @@ use std::{cmp::min, usize};
 
 use crate::engine::buffer::Buffer;
 
+// TODO: Design a better filter for up/down sampling
+
 // Keeping L, H, and R for DX and potential auto-vectorization wins
 #[inline(always)]
 pub fn upsample_zoh<const L: usize, const H: usize>(inputs: &Buffer<L>, outputs: &mut Buffer<H>){

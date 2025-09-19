@@ -1,5 +1,5 @@
 use generic_array::{ArrayLength, GenericArray};
-use typenum::{Unsigned, U1, U2};
+use typenum::{Unsigned, U1, U2, U32};
 
 /// This will determine how ports audio will fan in and out, etc.
 /// TODO: Actually implement this
@@ -137,3 +137,7 @@ pub trait PortedErased {
 pub type Mono = U1;
 /// Utility type for two channels
 pub type Stereo = U2;
+/// Some nodes can take an arbitrary amount of inputs. However, these need to be preallocated.
+/// 
+/// This type lets a Node know that it will have quite a number of inputs.
+pub type MaxInitialInputsType = U32;

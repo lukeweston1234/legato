@@ -66,7 +66,7 @@ where
             ports: Ports {
                 audio_inputs: None,
                 audio_outputs: Some(generate_audio_outputs()),
-                control_inputs: None,
+                control_inputs: None, // TODO, Trig, Volume, etc.
                 control_outputs: None,
             },
         }
