@@ -9,7 +9,8 @@ use crate::{
         buffer::Frame,
         node::Node,
         port::{
-            AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono, MultipleInputBehavior, PortedErased, Ports, Stereo, UpsampleAlg
+            AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono,
+            MultipleInputBehavior, PortedErased, Ports, Stereo, UpsampleAlg,
         },
     },
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
@@ -165,7 +166,7 @@ where
     pub fn new(delay_line: Arc<UnsafeCell<DelayLine<AF, Ao>>>) -> Self {
         Self {
             delay_line,
-            delay_times: GenericArray::generate(|_| 300.0), // Default 300ms for now
+            delay_times: GenericArray::generate(|_| 900.0), // Default 900ms for now
             ports: Ports {
                 audio_inputs: None,
                 audio_outputs: Some(generate_audio_outputs()),
@@ -175,7 +176,6 @@ where
         }
     }
 }
-
 
 impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for DelayRead<AF, Ao>
 where
@@ -190,12 +190,14 @@ where
         _: &mut Frame<CF>,
     ) {
         debug_assert_eq!(Ao::USIZE, ao.len());
-        for n in 0..AF {
-            for c in 0..Ao::USIZE {
-                unsafe {
+        unsafe {
+            let delay_line = &(*self.delay_line.get());
+            for n in 0..AF {
+                for c in 0..Ao::USIZE {
+                    let offset =
+                        ((self.delay_times[c] / 1000.0) * ctx.get_sample_rate()) + (AF - n) as f32;
                     // Read delay line based on per channel delay time. Must cast to sample index.
-                    ao[c][n] =
-                        (*self.delay_line.get()).get_delay_linear_interp(c, (self.delay_times[c] / 1000.0) * ctx.get_sample_rate());
+                    ao[c][n] = delay_line.get_delay_linear_interp(c, offset)
                 }
             }
         }
@@ -225,7 +227,6 @@ unsafe impl<const AF: usize, C> Sync for DelayRead<AF, C> where C: ArrayLength {
 
 unsafe impl<const AF: usize, C> Send for DelayWrite<AF, C> where C: ArrayLength {}
 unsafe impl<const AF: usize, C> Sync for DelayWrite<AF, C> where C: ArrayLength {}
-
 
 pub type DelayReadMono<const AF: usize> = DelayRead<AF, Mono>;
 pub type DelayReadStereo<const AF: usize> = DelayRead<AF, Stereo>;

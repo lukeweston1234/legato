@@ -1,12 +1,10 @@
-use slotmap::SecondaryMap;
-use typenum::U32;
-
 use crate::engine::{
     audio_context::AudioContext,
     buffer::Buffer,
     graph::{AudioGraph, AudioNode, Connection, GraphError, NodeKey},
-    port::{DownsampleAlg, PortRate, UpsampleAlg}, utils::{downsample_first_sample, upsample_linear, upsample_zoh},
+    port::PortRate,
 };
+use slotmap::SecondaryMap;
 
 // Arbitrary max init. inputs
 pub const MAX_INITIAL_INPUTS: usize = 32;
@@ -17,11 +15,11 @@ pub struct Runtime<const AF: usize, const CF: usize, const CHANNELS: usize> {
     graph: AudioGraph<AF, CF>,
     // Where the nodes write their output to, so node sinks / port sources
     port_sources_audio: SecondaryMap<NodeKey, Vec<Buffer<AF>>>,
-    port_sources_control: SecondaryMap<NodeKey, Vec<Buffer<CF>>>, 
+    port_sources_control: SecondaryMap<NodeKey, Vec<Buffer<CF>>>,
     // Preallocated buffers for delivering samples
     audio_inputs_scratch_buffers: Vec<Buffer<AF>>,
     control_inputs_scratch_buffers: Vec<Buffer<CF>>,
-    // An optional sink key for chaining graphs as nodes, delivering f32 values, etc. 
+    // An optional sink key for chaining graphs as nodes, delivering f32 values, etc.
     sink_key: Option<NodeKey>,
 }
 impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF, CHANNELS> {
@@ -92,46 +90,32 @@ impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF
             for connection in incoming {
                 // Write all incoming data from the connection and port, to the current node, and the sink port
                 debug_assert!(connection.sink.node_key == *node_key);
-                // For the time being, we panic here, as this shows that something is wrong with our graph construction logic
-                let sink_node = nodes.get(connection.sink.node_key).unwrap_or_else(|| panic!("Invalid sink node! {:?}", connection));
-
                 match (connection.source.port_rate, connection.sink.port_rate) {
-                    (PortRate::Audio, PortRate::Control) => {
-                        // downsample audio to control, using spec on the port
-                        let audio_out = &self.port_sources_audio[connection.source.node_key][connection.source.port_index];
-                        let control_inputs = &mut self.control_inputs_scratch_buffers[connection.sink.port_index];
-
-                        let sink_port = &sink_node.get_control_inputs().expect("Could not find audio out")[connection.sink.port_index];
-
-                        match sink_port.resample {
-                            DownsampleAlg::FirstSample => downsample_first_sample(audio_out, control_inputs),
-                        }
-                    },
-                    (PortRate::Control, PortRate::Audio) => {
-                        // upsample control to audio, using spec on the port
-                        let control_out = &self.port_sources_control[connection.source.node_key][connection.source.port_index];
-                        let audio_inputs = &mut self.audio_inputs_scratch_buffers[connection.sink.port_index];
-
-                        let sink_port = &sink_node.get_audio_inputs().expect("Could not find audio sink")[connection.sink.port_index];
-
-                        match sink_port.resample {
-                            UpsampleAlg::Lerp => upsample_linear(&control_out, audio_inputs),
-                            UpsampleAlg::ZOH => upsample_zoh(&control_out, audio_inputs),
-                        } 
-                    },
                     (PortRate::Audio, PortRate::Audio) => {
-                        self.audio_inputs_scratch_buffers[connection.sink.port_index] =
-                            self.port_sources_audio[connection.source.node_key][connection.source.port_index];
-                    },
-                    (PortRate::Control, PortRate::Control) => {
-                        self.control_inputs_scratch_buffers[connection.sink.port_index] =
-                            self.port_sources_control[connection.source.node_key][connection.source.port_index];
+                        self.audio_inputs_scratch_buffers[connection.sink.port_index] = self
+                            .port_sources_audio[connection.source.node_key]
+                            [connection.source.port_index];
                     }
+                    (PortRate::Control, PortRate::Control) => {
+                        self.control_inputs_scratch_buffers[connection.sink.port_index] = self
+                            .port_sources_control[connection.source.node_key]
+                            [connection.source.port_index];
+                    }
+                    (PortRate::Audio, PortRate::Control) => todo!(),
+                    (PortRate::Control, PortRate::Audio) => todo!(),
                 };
             }
 
-            let audio_output_buffer = &mut self.port_sources_audio[*node_key]; // Let the node write to the output as a mut_slice
+            let audio_output_buffer = &mut self.port_sources_audio[*node_key];
             let control_output_buffer = &mut self.port_sources_control[*node_key];
+
+            // // Zero out previous output buffers
+            // for buf in audio_output_buffer.iter_mut() {
+            //     buf.fill(0.0);
+            // }
+            // for buf in control_output_buffer.iter_mut() {
+            //     buf.fill(0.0);
+            // }
 
             let node = nodes
                 .get_mut(*node_key)
@@ -142,7 +126,7 @@ impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF
                 &self.audio_inputs_scratch_buffers[0..audio_input_size],
                 audio_output_buffer.as_mut_slice(),
                 &self.control_inputs_scratch_buffers[0..audio_input_size],
-                control_output_buffer.as_mut_slice()
+                control_output_buffer.as_mut_slice(),
             );
         }
 

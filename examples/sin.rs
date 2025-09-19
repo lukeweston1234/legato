@@ -59,11 +59,11 @@ fn main() {
         build_runtime(CAPACITY, SAMPLE_RATE as f32, CONTROL_RATE);
 
     let a = runtime
-        .add_node_api(Nodes::OscMono, None)
+        .add_node_api(Nodes::OscMono)
         .expect("Could not add node");
 
     let b = runtime
-        .add_node_api(Nodes::Stereo, None)
+        .add_node_api(Nodes::Stereo)
         .expect("Could not add node");
 
     let _ = runtime.add_edge(Connection {
