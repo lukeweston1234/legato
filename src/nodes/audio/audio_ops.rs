@@ -28,10 +28,7 @@ where
             op,
             b,
             ports: Ports {
-                audio_inputs: Some(generate_audio_inputs(
-                    crate::engine::port::MultipleInputBehavior::Default,
-                    crate::engine::port::UpsampleAlg::Lerp,
-                )),
+                audio_inputs: Some(generate_audio_inputs()),
                 audio_outputs: Some(generate_audio_outputs()),
                 control_inputs: None,
                 control_outputs: None,

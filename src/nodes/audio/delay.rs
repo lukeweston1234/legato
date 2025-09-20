@@ -10,7 +10,7 @@ use crate::{
         node::Node,
         port::{
             AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono,
-            MultipleInputBehavior, PortedErased, Ports, Stereo, UpsampleAlg,
+            PortedErased, Ports, Stereo, UpsampleAlg,
         },
     },
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
@@ -102,10 +102,7 @@ where
         Self {
             delay_line,
             ports: Ports {
-                audio_inputs: Some(generate_audio_inputs(
-                    MultipleInputBehavior::Default,
-                    UpsampleAlg::Lerp,
-                )),
+                audio_inputs: Some(generate_audio_inputs()),
                 audio_outputs: None,
                 control_inputs: None,
                 control_outputs: None,

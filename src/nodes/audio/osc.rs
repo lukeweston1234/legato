@@ -38,16 +38,12 @@ where
                     name: "fm",
                     index: 0
                 },
-                input_behavior: MultipleInputBehavior::Default,
-                resample: UpsampleAlg::Lerp
             },
             AudioInputPort {
                 meta: PortMeta {
                     name: "pm",
                     index: 1
                 },
-                input_behavior: MultipleInputBehavior::Default,
-                resample: UpsampleAlg::Lerp
             },
         ];
 

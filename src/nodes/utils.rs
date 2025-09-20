@@ -6,21 +6,14 @@ use std::{
 
 use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
 
-use crate::engine::port::{
-    AudioInputPort, AudioOutputPort, MultipleInputBehavior, PortMeta, UpsampleAlg,
-};
+use crate::engine::port::{AudioInputPort, AudioOutputPort, PortMeta};
 
 /// Utility function for generating audio input ports for nodes
-pub fn generate_audio_inputs<Ai>(
-    behavior: MultipleInputBehavior,
-    resample: UpsampleAlg,
-) -> GenericArray<AudioInputPort, Ai>
+pub fn generate_audio_inputs<Ai>() -> GenericArray<AudioInputPort, Ai>
 where
     Ai: ArrayLength,
 {
     GenericArray::generate(|i| AudioInputPort {
-        input_behavior: behavior,
-        resample,
         meta: {
             PortMeta {
                 name: match Ai::USIZE {

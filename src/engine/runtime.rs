@@ -92,14 +92,18 @@ impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF
                 debug_assert!(connection.sink.node_key == *node_key);
                 match (connection.source.port_rate, connection.sink.port_rate) {
                     (PortRate::Audio, PortRate::Audio) => {
-                        self.audio_inputs_scratch_buffers[connection.sink.port_index] = self
-                            .port_sources_audio[connection.source.node_key]
-                            [connection.source.port_index];
+                        for n in 0..AF {
+                            self.audio_inputs_scratch_buffers[connection.sink.port_index][n] +=
+                                self.port_sources_audio[connection.source.node_key]
+                                    [connection.source.port_index][n];
+                        }
                     }
                     (PortRate::Control, PortRate::Control) => {
-                        self.control_inputs_scratch_buffers[connection.sink.port_index] = self
-                            .port_sources_control[connection.source.node_key]
-                            [connection.source.port_index];
+                        for n in 0..AF {
+                            self.control_inputs_scratch_buffers[connection.sink.port_index][n] +=
+                                self.port_sources_control[connection.source.node_key]
+                                    [connection.source.port_index][n];
+                        }
                     }
                     (PortRate::Audio, PortRate::Control) => todo!(),
                     (PortRate::Control, PortRate::Audio) => todo!(),

@@ -1,10 +1,8 @@
 use crate::engine::audio_context::AudioContext;
-use crate::engine::port::{AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta, UpsampleAlg};
-use crate::engine::{
-    node::Node,
-    buffer::Frame,
-    port::{MultipleInputBehavior, PortedErased},
+use crate::engine::port::{
+    AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta, UpsampleAlg,
 };
+use crate::engine::{buffer::Frame, node::Node, port::PortedErased};
 
 pub struct Stereo {
     ports: StereoPorts,
@@ -19,7 +17,14 @@ impl Default for Stereo {
 }
 
 impl<'a, const AF: usize, const CF: usize> Node<AF, CF> for Stereo {
-    fn process(&mut self, _: &AudioContext, ai: &Frame<AF>, ao: &mut Frame<AF>, _: &Frame<CF>, _: &mut Frame<CF>) {
+    fn process(
+        &mut self,
+        _: &AudioContext,
+        ai: &Frame<AF>,
+        ao: &mut Frame<AF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
+    ) {
         debug_assert_eq!(ai.len(), 1);
         debug_assert_eq!(ao.len(), 2);
 
@@ -43,21 +48,19 @@ impl StereoPorts {
                     name: "audio",
                     index: 0,
                 },
-                input_behavior: MultipleInputBehavior::Default,
-                resample: UpsampleAlg::Lerp
             }],
             audio_outputs: [
                 AudioOutputPort {
                     meta: PortMeta {
-                    name: "l",
-                    index: 0,
+                        name: "l",
+                        index: 0,
                     },
                 },
                 AudioOutputPort {
                     meta: PortMeta {
-                    name: "r",
-                    index: 1,
-                    }
+                        name: "r",
+                        index: 1,
+                    },
                 },
             ],
         }
@@ -77,5 +80,4 @@ impl PortedErased for Stereo {
     fn get_control_outputs(&self) -> Option<&[ControlOutputPort]> {
         None
     }
-     
 }

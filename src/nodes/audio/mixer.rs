@@ -22,10 +22,7 @@ where
     pub fn default() -> Self {
         Self {
             ports: Ports {
-                audio_inputs: Some(generate_audio_inputs(
-                    MultipleInputBehavior::Default,
-                    UpsampleAlg::Lerp,
-                )),
+                audio_inputs: Some(generate_audio_inputs()),
                 audio_outputs: Some(generate_audio_outputs()),
                 control_inputs: None,
                 control_outputs: None,

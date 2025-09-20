@@ -1,28 +1,6 @@
 use generic_array::{ArrayLength, GenericArray};
 use typenum::{Unsigned, U1, U2, U32};
 
-/// This will determine how ports audio will fan in and out, etc.
-/// TODO: Actually implement this
-#[derive(Debug, PartialEq, Clone, Copy, Default)]
-pub enum MultipleInputBehavior {
-    #[default]
-    Default, // Input: Take the first sample, Output: Fill the frame
-    Sum,
-    SumNormalized,
-    Mute,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum SampleAlg {
-    UpSample(UpsampleAlg),
-    DownSample(DownsampleAlg),
-}
-impl Default for SampleAlg {
-    fn default() -> Self {
-        SampleAlg::UpSample(UpsampleAlg::ZOH)
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct PortMeta {
     pub name: &'static str,
@@ -39,16 +17,12 @@ pub struct PortMeta {
 
 pub struct AudioInputPort {
     pub meta: PortMeta,
-    pub input_behavior: MultipleInputBehavior,
-    pub resample: UpsampleAlg,
 }
 pub struct AudioOutputPort {
     pub meta: PortMeta,
 }
 pub struct ControlInputPort {
     pub meta: PortMeta,
-    pub input_behavior: MultipleInputBehavior,
-    pub resample: DownsampleAlg,
 }
 pub struct ControlOutputPort {
     pub meta: PortMeta,
@@ -138,6 +112,6 @@ pub type Mono = U1;
 /// Utility type for two channels
 pub type Stereo = U2;
 /// Some nodes can take an arbitrary amount of inputs. However, these need to be preallocated.
-/// 
+///
 /// This type lets a Node know that it will have quite a number of inputs.
 pub type MaxInitialInputsType = U32;

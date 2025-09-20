@@ -249,8 +249,8 @@ mod test {
     use crate::engine::graph::{AudioGraph, Connection, ConnectionEntry};
     use crate::engine::node::Node;
     use crate::engine::port::{
-        AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono,
-        MultipleInputBehavior, PortMeta, PortRate, PortedErased, UpsampleAlg,
+        AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta, PortRate,
+        PortedErased,
     };
 
     use super::NodeKey;
@@ -290,8 +290,6 @@ mod test {
                     name: "audio",
                     index: 0,
                 },
-                input_behavior: MultipleInputBehavior::Default,
-                resample: UpsampleAlg::Lerp,
             }];
             let ao = arr![AudioOutputPort {
                 meta: PortMeta {
