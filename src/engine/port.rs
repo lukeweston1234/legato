@@ -28,28 +28,11 @@ pub struct ControlOutputPort {
     pub meta: PortMeta,
 }
 
-/// Ports can specify how the incoming signal should be resampled for audio.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Hash)]
-pub enum UpsampleAlg {
-    #[default]
-    ZOH,
-    Lerp, // TODO: Consider more options?
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Hash)]
 pub enum PortRate {
     #[default]
     Audio,
     Control,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Hash)]
-pub enum DownsampleAlg {
-    #[default]
-    FirstSample, // First sample
-                 // LastSample, // Lowest latency
-                 // Average,
-                 // TODO: one pole filter, more options?
 }
 
 pub trait Ported<Ai, Ao, Ci, Co>

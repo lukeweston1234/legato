@@ -1,6 +1,6 @@
 use crate::engine::audio_context::AudioContext;
 use crate::engine::port::{
-    AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta, UpsampleAlg,
+    AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta,
 };
 use crate::engine::{buffer::Frame, node::Node, port::PortedErased};
 

@@ -10,7 +10,7 @@ use crate::{
         node::Node,
         port::{
             AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono,
-            PortedErased, Ports, Stereo, UpsampleAlg,
+            PortedErased, Ports, Stereo,
         },
     },
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
