@@ -354,7 +354,7 @@ mod test {
     {
         fn process(
             &mut self,
-            _ctx: &AudioContext,
+            _ctx: &mut AudioContext<AF>,
             _ai: &crate::engine::buffer::Frame<AF>,
             _ao: &mut crate::engine::buffer::Frame<AF>,
             _ci: &crate::engine::buffer::Frame<CF>,

@@ -2,7 +2,7 @@ use generic_array::ArrayLength;
 use typenum::{U0, U1, U16, U2, U4, U8};
 
 use crate::{
-    engine::{buffer::Frame, node::Node, port::*},
+    engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
     nodes::utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
@@ -38,11 +38,11 @@ where
 {
     fn process(
         &mut self,
-        _: &crate::engine::audio_context::AudioContext,
-        ai: &crate::engine::buffer::Frame<AF>,
-        ao: &mut crate::engine::buffer::Frame<AF>,
-        _: &crate::engine::buffer::Frame<CF>,
-        _: &mut crate::engine::buffer::Frame<CF>,
+        _: &mut AudioContext<AF>,
+        ai: &Frame<AF>,
+        ao: &mut Frame<AF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
     ) {
         // For instance, we can have a stereo mixer with 2 stereo tracks.
         // This would then be mapped like so [[L][R][L][R]].

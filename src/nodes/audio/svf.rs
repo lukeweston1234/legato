@@ -23,7 +23,6 @@
 //     ic2eq: f32
 // }
 
-
 // #[derive(Copy, Clone, Default)]
 // struct SvfCoefficients {
 //     a1: f32,
@@ -33,7 +32,6 @@
 //     m1: f32,
 //     m2: f32,
 // }
-
 
 // pub struct SvfPorts<Ai, Ci, O>
 // where
@@ -46,13 +44,12 @@
 //     pub outputs: GenericArray<Port, O>,
 // }
 
-
 // pub struct Svf <Ai, Ci, O>
 // where
 //     Ai: Unsigned + Add<Ci> + ArrayLength,
 //     Ci: Unsigned,
 //     O: Unsigned + ArrayLength,
-//     Sum<Ai, Ci>: Unsigned + ArrayLength, 
+//     Sum<Ai, Ci>: Unsigned + ArrayLength,
 // {
 //     filter_type: FilterType,
 //     sample_rate: f32,
@@ -73,12 +70,12 @@
 //     Ai: Unsigned + Add<Ci> + ArrayLength,
 //     Ci: Unsigned,
 //     O: Unsigned + ArrayLength,
-//     Sum<Ai, Ci>: Unsigned + ArrayLength, 
+//     Sum<Ai, Ci>: Unsigned + ArrayLength,
 // {
 //     pub fn new(ports: SvfPorts<Ai, Ci, O>, sample_rate: f32, filter_type: FilterType, cutoff: f32, gain: f32, q: f32) -> Self {
-//         let mut new_filter = 
+//         let mut new_filter =
 //         Self {
-//             sample_rate, 
+//             sample_rate,
 //             filter_type,
 //             cutoff,
 //             gain,
@@ -249,7 +246,6 @@
 //     }
 // }
 
-
 // impl SvfPorts<Stereo, ControlIn, Stereo>{
 //     fn new() -> Self {
 //         let inputs = arr![
@@ -277,9 +273,9 @@
 //     Ai: Unsigned + Add<Ci> + ArrayLength,
 //     Ci: Unsigned,
 //     O: Unsigned + ArrayLength,
-//     Sum<Ai, Ci>: Unsigned + ArrayLength, 
+//     Sum<Ai, Ci>: Unsigned + ArrayLength,
 // {
-//     fn process(&mut self, ctx: &AudioContext, inputs: &Frame<N>, output: &mut Frame<N>) {
+//     fn process(&mut self, ctx: &mut AudioContext<AF>, inputs: &Frame<N>, output: &mut Frame<N>) {
 //         debug_assert_eq!(inputs.len(), <Sum<Ai, Ci>>::USIZE);
 //         debug_assert_eq!(output.len(), O::USIZE);
 //         let cutoff = inputs.get(Ai::USIZE); // Control starts at the end of the audio inputs
@@ -304,7 +300,7 @@
 //                 let v1 = self.coefficients.a1 * filter_state.ic1eq + self.coefficients.a2 * v3;
 
 //                 let v2 = filter_state.ic2eq + self.coefficients.a2 * filter_state.ic1eq + self.coefficients.a3 * v3;
-                
+
 //                 filter_state.ic1eq = 2.0 * v1 - filter_state.ic1eq;
 //                 filter_state.ic2eq = 2.0 * v2 - filter_state.ic2eq;
 
@@ -327,4 +323,3 @@
 //         Self::new(ports, 48_000.0, FilterType::LowPass, 5400.0 , 0.7, 0.3)
 //     }
 // }
-

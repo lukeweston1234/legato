@@ -4,6 +4,8 @@ use typenum::{U0, U1};
 
 use crate::{
     engine::{
+        audio_context::AudioContext,
+        buffer::Frame,
         node::Node,
         port::{Mono, PortedErased, Ports, Stereo},
     },
@@ -43,11 +45,11 @@ where
 {
     fn process(
         &mut self,
-        ctx: &crate::engine::audio_context::AudioContext,
-        ai: &crate::engine::buffer::Frame<AF>,
-        ao: &mut crate::engine::buffer::Frame<AF>,
-        ci: &crate::engine::buffer::Frame<CF>,
-        co: &mut crate::engine::buffer::Frame<CF>,
+        ctx: &mut AudioContext<AF>,
+        ai: &Frame<AF>,
+        ao: &mut Frame<AF>,
+        ci: &Frame<CF>,
+        co: &mut Frame<CF>,
     ) {
         debug_assert_eq!(C::USIZE, ai.len());
         debug_assert_eq!(C::USIZE, ao.len());

@@ -1,4 +1,4 @@
-use std::{cell::UnsafeCell, sync::Arc};
+use std::{cell::UnsafeCell, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
 use cpal::{
@@ -9,12 +9,13 @@ use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
 use legato::{
     backend::write_data_cpal,
     engine::{
-        builder::Nodes,
+        audio_context,
+        builder::{AddNodeResponse, Nodes},
         graph::{Connection, ConnectionEntry},
         port::{PortRate, Stereo},
         runtime::{build_runtime, Runtime},
     },
-    nodes::audio::delay::DelayLine,
+    nodes::audio::delay::{self, DelayLine},
 };
 use legato::{engine::builder::RuntimeBuilder, nodes::audio::sampler::AudioSampleBackend};
 
@@ -66,7 +67,7 @@ fn main() {
     let data = Arc::new(ArcSwapOption::new(None));
     let backend = AudioSampleBackend::new(data.clone());
 
-    let sampler = runtime
+    let (sampler, _) = runtime
         .add_node_api(Nodes::SamplerStereo {
             props: data.clone(),
         })
@@ -74,25 +75,28 @@ fn main() {
 
     let _ = backend.load_file("./samples/amen.wav");
 
-    let delay_line = Arc::new(UnsafeCell::new(DelayLine::<BLOCK_SIZE, Stereo>::new(
-        48_000 * 1,
-    )));
-
-    let delay_write = runtime
+    let (delay_write, delay_write_key_res) = runtime
         .add_node_api(Nodes::DelayWriteStereo {
-            props: delay_line.clone(),
+            props: Duration::from_secs(1),
         })
         .unwrap();
 
-    let delay_read = runtime
+    let res = delay_write_key_res.unwrap();
+
+    let delay_key = match res {
+        AddNodeResponse::DelayWrite(delay_key) => delay_key,
+    };
+
+    let (delay_read, _) = runtime
         .add_node_api(Nodes::DelayReadStereo {
-            props: delay_line.clone(),
+            key: delay_key,
+            offsets: [Duration::from_millis(12), Duration::from_millis(32)],
         })
         .unwrap();
 
-    let mixer = runtime.add_node_api(Nodes::TwoTrackStereoMixer).unwrap();
+    let (mixer, _) = runtime.add_node_api(Nodes::TwoTrackStereoMixer).unwrap();
 
-    let delay_gain = runtime
+    let (delay_gain, _) = runtime
         .add_node_api(Nodes::MultStereo { props: 0.6 })
         .unwrap();
 

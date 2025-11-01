@@ -19,7 +19,7 @@ impl Default for Stereo {
 impl<'a, const AF: usize, const CF: usize> Node<AF, CF> for Stereo {
     fn process(
         &mut self,
-        _: &AudioContext,
+        _: &mut AudioContext<AF>,
         ai: &Frame<AF>,
         ao: &mut Frame<AF>,
         _: &Frame<CF>,

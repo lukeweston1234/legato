@@ -3,7 +3,7 @@ use crate::engine::{audio_context::AudioContext, buffer::Frame, port::PortedEras
 pub trait Node<const AF: usize, const CF: usize>: PortedErased {
     fn process(
         &mut self,
-        ctx: &AudioContext,
+        ctx: &mut AudioContext<AF>,
         ai: &Frame<AF>,
         ao: &mut Frame<AF>,
         ci: &Frame<CF>,

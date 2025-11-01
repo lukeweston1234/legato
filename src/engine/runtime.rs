@@ -1,3 +1,5 @@
+use std::task::Context;
+
 use crate::engine::{
     audio_context::AudioContext,
     buffer::Buffer,
@@ -11,7 +13,7 @@ pub const MAX_INITIAL_INPUTS: usize = 32;
 
 pub struct Runtime<const AF: usize, const CF: usize, const CHANNELS: usize> {
     // Audio context containing sample rate, control rate, etc.
-    context: AudioContext,
+    context: AudioContext<AF>,
     graph: AudioGraph<AF, CF>,
     // Where the nodes write their output to, so node sinks / port sources
     port_sources_audio: SecondaryMap<NodeKey, Vec<Buffer<AF>>>,
@@ -23,7 +25,7 @@ pub struct Runtime<const AF: usize, const CF: usize, const CHANNELS: usize> {
     sink_key: Option<NodeKey>,
 }
 impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF, CHANNELS> {
-    pub fn new(context: AudioContext, graph: AudioGraph<AF, CF>) -> Self {
+    pub fn new(context: AudioContext<AF>, graph: AudioGraph<AF, CF>) -> Self {
         let audio_sources = SecondaryMap::with_capacity(graph.len());
         let control_sources = SecondaryMap::with_capacity(graph.len());
         Self {
@@ -67,6 +69,9 @@ impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF
             }
             false => Err(GraphError::NodeDoesNotExist),
         }
+    }
+    pub fn get_context_mut(&mut self) -> &mut AudioContext<AF> {
+        &mut self.context
     }
     // TODO: Graphs as nodes again
     pub fn next_block(&mut self) -> &[Buffer<AF>] {
@@ -126,7 +131,7 @@ impl<'a, const AF: usize, const CF: usize, const CHANNELS: usize> Runtime<AF, CF
                 .expect("Could not find node at index {node_index:?}");
 
             node.process(
-                &self.context,
+                &mut self.context,
                 &self.audio_inputs_scratch_buffers[0..audio_input_size],
                 audio_output_buffer.as_mut_slice(),
                 &self.control_inputs_scratch_buffers[0..audio_input_size],

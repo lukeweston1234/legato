@@ -1,10 +1,16 @@
-use std::{cell::UnsafeCell, sync::Arc};
+use std::{cell::UnsafeCell, iter::Cycle, ops::Add, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
 use generic_array::GenericArray;
 
 use crate::{
-    engine::{graph::NodeKey, node::Node, runtime::Runtime},
+    engine::{
+        audio_context::{AudioContext, DelayLineKey},
+        graph::NodeKey,
+        node::Node,
+        port::Mono,
+        runtime::Runtime,
+    },
     nodes::audio::{
         audio_ops::{ApplyOpMono, ApplyOpStereo},
         delay::{DelayLine, DelayReadMono, DelayReadStereo, DelayWriteMono, DelayWriteStereo},
@@ -33,16 +39,18 @@ pub enum Nodes<const AF: usize> {
     },
     // Delays
     DelayWriteMono {
-        props: Arc<UnsafeCell<DelayLine<AF, U1>>>,
+        props: Duration,
     },
     DelayWriteStereo {
-        props: Arc<UnsafeCell<DelayLine<AF, U2>>>,
+        props: Duration,
     },
     DelayReadMono {
-        props: Arc<UnsafeCell<DelayLine<AF, U1>>>,
+        key: DelayLineKey,
+        offsets: [Duration; 1],
     },
     DelayReadStereo {
-        props: Arc<UnsafeCell<DelayLine<AF, U2>>>,
+        key: DelayLineKey,
+        offsets: [Duration; 2],
     },
     // Ops
     AddMono {
@@ -74,42 +82,101 @@ pub enum BuilderError {
     InvalidProps,
 }
 
+/// Sometime, certain information can only be passed out from the runtime builder.
+///
+/// For instance, adding a delay_write requires a slotmap key that is only now constructed.
+pub enum AddNodeResponse {
+    DelayWrite(DelayLineKey),
+}
+
 pub trait RuntimeBuilder<const AF: usize> {
-    fn add_node_api(&mut self, node: Nodes<AF>) -> Result<NodeKey, BuilderError>;
+    fn add_node_api(
+        &mut self,
+        node: Nodes<AF>,
+    ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError>;
 }
 
 impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Runtime<AF, CF, C> {
-    fn add_node_api(&mut self, node: Nodes<AF>) -> Result<NodeKey, BuilderError> {
-        let node_created: Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError> = match node
-        {
-            Nodes::OscMono => Ok(Box::new(OscMono::default())),
-            Nodes::OscStereo => Ok(Box::new(OscStereo::default())),
-            Nodes::Stereo => Ok(Box::new(Stereo::default())),
+    fn add_node_api(
+        &mut self,
+        node: Nodes<AF>,
+    ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError> {
+        let node_created: (
+            Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError>,
+            Option<AddNodeResponse>,
+        ) = match node {
+            Nodes::OscMono => (Ok(Box::new(OscMono::default())), None),
+            Nodes::OscStereo => (Ok(Box::new(OscStereo::default())), None),
+            Nodes::Stereo => (Ok(Box::new(Stereo::default())), None),
             // Samplers
-            Nodes::SamplerMono { props } => Ok(Box::new(SamplerMono::new(props))),
-            Nodes::SamplerStereo { props } => Ok(Box::new(SamplerStereo::new(props))),
-            // Delay
-            Nodes::DelayReadMono { props } => Ok(Box::new(DelayReadMono::new(props))),
-            Nodes::DelayReadStereo { props } => Ok(Box::new(DelayReadStereo::new(props))),
-            Nodes::DelayWriteMono { props } => Ok(Box::new(DelayWriteMono::new(props))),
-            Nodes::DelayWriteStereo { props } => Ok(Box::new(DelayWriteStereo::new(props))),
+            Nodes::SamplerMono { props } => (Ok(Box::new(SamplerMono::new(props))), None),
+            Nodes::SamplerStereo { props } => (Ok(Box::new(SamplerStereo::new(props))), None),
+            // Delay reads
+            Nodes::DelayReadMono { key, offsets } => (
+                Ok(Box::new(DelayReadMono::new(
+                    key,
+                    *GenericArray::from_slice(&offsets),
+                ))),
+                None,
+            ),
+            Nodes::DelayReadStereo { key, offsets } => (
+                Ok(Box::new(DelayReadStereo::new(
+                    key,
+                    *GenericArray::from_slice(&offsets),
+                ))),
+                None,
+            ),
+            // Delay writes (keep as-is)
+            Nodes::DelayWriteMono { props } => {
+                let ctx = self.get_context_mut();
+                let samples = ctx.get_sample_rate();
+                let delay_capacity = props.as_secs_f32() * samples;
+
+                let delay_line_mono = DelayLine::<AF, U1>::new(delay_capacity as usize);
+                let key = ctx.add_delay_line(Box::new(delay_line_mono));
+
+                (
+                    Ok(Box::new(DelayWriteMono::new(key))),
+                    Some(AddNodeResponse::DelayWrite(key)),
+                )
+            }
+            Nodes::DelayWriteStereo { props } => {
+                let ctx = self.get_context_mut();
+                let samples = ctx.get_sample_rate();
+                let delay_capacity = props.as_secs_f32() * samples;
+
+                let delay_line_stereo = DelayLine::<AF, U2>::new(delay_capacity as usize);
+                let key = ctx.add_delay_line(Box::new(delay_line_stereo));
+
+                (
+                    Ok(Box::new(DelayWriteStereo::new(key))),
+                    Some(AddNodeResponse::DelayWrite(key)),
+                )
+            }
             // Ops
-            Nodes::AddMono { props } => Ok(Box::new(ApplyOpMono::new(|a, b| a + b, props))),
-            Nodes::AddStereo { props } => Ok(Box::new(ApplyOpStereo::new(|a, b| a + b, props))),
-            Nodes::MultMono { props } => Ok(Box::new(ApplyOpMono::new(|a, b| a * b, props))),
-            Nodes::MultStereo { props } => Ok(Box::new(ApplyOpStereo::new(|a, b| a * b, props))),
+            Nodes::AddMono { props } => (Ok(Box::new(ApplyOpMono::new(|a, b| a + b, props))), None),
+            Nodes::AddStereo { props } => {
+                (Ok(Box::new(ApplyOpStereo::new(|a, b| a + b, props))), None)
+            }
+            Nodes::MultMono { props } => {
+                (Ok(Box::new(ApplyOpMono::new(|a, b| a * b, props))), None)
+            }
+            Nodes::MultStereo { props } => {
+                (Ok(Box::new(ApplyOpStereo::new(|a, b| a * b, props))), None)
+            }
             // Mixers
-            Nodes::StereoMixer => Ok(Box::new(StereoMixer::default())),
-            Nodes::StereoToMono => Ok(Box::new(StereoToMonoMixer::default())),
-            Nodes::FourToMonoMixer => Ok(Box::new(FourToMonoMixer::default())),
-            Nodes::TwoTrackStereoMixer => Ok(Box::new(TwoTrackStereoMixer::default())),
-            Nodes::FourTrackStereoMixer => Ok(Box::new(FourTrackStereoMixer::default())),
-            Nodes::EightTrackStereoMixer => Ok(Box::new(EightTrackStereoMixer::default())),
-            Nodes::TwoTrackMonoMixer => Ok(Box::new(TwoTrackMonoMixer::default())),
+            Nodes::StereoMixer => (Ok(Box::new(StereoMixer::default())), None),
+            Nodes::StereoToMono => (Ok(Box::new(StereoToMonoMixer::default())), None),
+            Nodes::FourToMonoMixer => (Ok(Box::new(FourToMonoMixer::default())), None),
+            Nodes::TwoTrackStereoMixer => (Ok(Box::new(TwoTrackStereoMixer::default())), None),
+            Nodes::FourTrackStereoMixer => (Ok(Box::new(FourTrackStereoMixer::default())), None),
+            Nodes::EightTrackStereoMixer => (Ok(Box::new(EightTrackStereoMixer::default())), None),
+            Nodes::TwoTrackMonoMixer => (Ok(Box::new(TwoTrackMonoMixer::default())), None),
         };
+
         match node_created {
-            Ok(node) => Ok(self.add_node(node)),
-            Err(err) => Err(err),
+            (Ok(node), maybe_response) => Ok((self.add_node(node), maybe_response)),
+            (Err(err), _) => Err(err),
         }
     }
 }

@@ -91,7 +91,7 @@ where
 {
     fn process(
         &mut self,
-        ctx: &AudioContext,
+        ctx: &mut AudioContext<AF>,
         ai: &crate::engine::buffer::Frame<AF>,
         ao: &mut crate::engine::buffer::Frame<AF>,
         _: &crate::engine::buffer::Frame<CF>,

@@ -44,6 +44,7 @@ where
     }
 }
 
+// TODO: This is lazy, maybe integrate with symponia crate or whatever it's called?
 pub struct Sampler<const AF: usize, Ao>
 where
     Ao: ArrayLength,
@@ -79,7 +80,7 @@ where
 {
     fn process(
         &mut self,
-        _: &AudioContext,
+        _: &mut AudioContext<AF>,
         _: &Frame<AF>,
         ao: &mut Frame<AF>,
         _: &Frame<CF>,

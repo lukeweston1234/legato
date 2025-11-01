@@ -58,11 +58,11 @@ fn main() {
     let mut runtime: Runtime<BLOCK_SIZE, CONTROL_FRAME_SIZE, CHANNEL_COUNT> =
         build_runtime(CAPACITY, SAMPLE_RATE as f32, CONTROL_RATE);
 
-    let a = runtime
+    let (a, _) = runtime
         .add_node_api(Nodes::OscMono)
         .expect("Could not add node");
 
-    let b = runtime
+    let (b, _) = runtime
         .add_node_api(Nodes::Stereo)
         .expect("Could not add node");
 
