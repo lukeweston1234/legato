@@ -13,12 +13,8 @@ use crate::{
             PortedErased, Ports, Stereo,
         },
     },
-    nodes::utils::{generate_audio_inputs, generate_audio_outputs},
+    nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
-
-/// Fairly hard to meet the requirements of a PureData/MaxMSP style delay line.
-///
-/// Perhaps something like a global delay context is a safer solution.
 
 pub fn lerp(v0: f32, v1: f32, t: f32) -> f32 {
     (1.0 - t) * v0 + t * v1
@@ -57,7 +53,6 @@ where
     pub fn get_write_pos(&self, channel: usize) -> &usize {
         &self.write_pos[channel]
     }
-    #[inline(always)]
     pub fn write_block(&mut self, block: &Frame<N>) {
         // We're assuming single threaded, with the graph firing in order, so no aliasing writes
         // Our first writing block is whatever capacity is leftover from the writing position
@@ -80,7 +75,7 @@ where
             self.write_pos[c] = (self.write_pos[c] + N) % self.capacity;
         }
     }
-    // Note: both of these functions use f32 sample indexes, as we allow for interpolated values
+    /// This uses f32 sample indexes, as we allow for interpolated values
     #[inline(always)]
     pub fn get_delay_linear_interp(&self, channel: usize, offset: f32) -> f32 {
         // Get the remainder of the difference of the write position and fractional sample index we need

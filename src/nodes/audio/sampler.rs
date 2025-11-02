@@ -12,9 +12,11 @@ use crate::{
         node::Node,
         port::{Stereo, *},
     },
-    nodes::utils::{decode_with_ffmpeg, generate_audio_outputs},
+    nodes::utils::ffmpeg::decode_with_ffmpeg,
+    nodes::utils::port_utils::generate_audio_outputs,
 };
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AudioSampleError {
     PathNotFound,
     FailedDecoding,

@@ -1,4 +1,4 @@
-use std::{cell::UnsafeCell, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
 use cpal::{
@@ -9,13 +9,11 @@ use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
 use legato::{
     backend::write_data_cpal,
     engine::{
-        audio_context,
         builder::{AddNodeResponse, Nodes},
         graph::{Connection, ConnectionEntry},
-        port::{PortRate, Stereo},
+        port::PortRate,
         runtime::{build_runtime, Runtime},
     },
-    nodes::audio::delay::{self, DelayLine},
 };
 use legato::{engine::builder::RuntimeBuilder, nodes::audio::sampler::AudioSampleBackend};
 
@@ -74,7 +72,9 @@ fn main() {
         })
         .expect("Could not add sampler");
 
-    let _ = backend.load_file("./samples/amen.wav");
+    let _ = backend
+        .load_file("./samples/amen.wav")
+        .expect("Could not load amen sample!");
 
     let (delay_write, delay_write_key_res) = runtime
         .add_node_api(Nodes::DelayWriteStereo {

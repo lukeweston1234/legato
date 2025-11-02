@@ -3,7 +3,7 @@ use typenum::{U0, U1, U16, U2, U4, U8};
 
 use crate::{
     engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
-    nodes::utils::{generate_audio_inputs, generate_audio_outputs},
+    nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
 pub struct Mixer<Ai, Ao>

@@ -4,7 +4,7 @@ use typenum::{Unsigned, U0, U2};
 use crate::engine::audio_context::AudioContext;
 use crate::engine::node::Node;
 use crate::engine::port::*;
-use crate::nodes::utils::generate_audio_outputs;
+use crate::nodes::utils::port_utils::generate_audio_outputs;
 pub enum Wave {
     Sin,
     Saw,

@@ -8,7 +8,7 @@ use crate::{
         node::Node,
         port::{Mono, PortedErased, Ports, Stereo},
     },
-    nodes::utils::{generate_audio_inputs, generate_audio_outputs},
+    nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
 pub struct ApplyOp<C>
