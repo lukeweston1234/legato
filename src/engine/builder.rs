@@ -14,6 +14,7 @@ use crate::{
     nodes::audio::{
         audio_ops::{ApplyOpMono, ApplyOpStereo},
         delay::{DelayLine, DelayReadMono, DelayReadStereo, DelayWriteMono, DelayWriteStereo},
+        filters::fir::{FirMono, FirStereo},
         mixer::*,
         osc::{OscMono, OscStereo},
         sampler::{SamplerMono, SamplerStereo},
@@ -23,7 +24,8 @@ use crate::{
 
 use typenum::{U1, U2};
 
-// TODO: Port over proc macro from other repo
+// TODO: Find nicer solution for arbitrary port size
+
 pub enum Nodes<const AF: usize> {
     // Osc
     OscMono,
@@ -51,6 +53,13 @@ pub enum Nodes<const AF: usize> {
     DelayReadStereo {
         key: DelayLineKey,
         offsets: [Duration; 2],
+    },
+    // Filter
+    FirMono {
+        kernel: Vec<f32>,
+    },
+    FirStereo {
+        kernel: Vec<f32>,
     },
     // Ops
     AddMono {
@@ -164,6 +173,9 @@ impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Ru
             Nodes::MultStereo { props } => {
                 (Ok(Box::new(ApplyOpStereo::new(|a, b| a * b, props))), None)
             }
+            // Filters
+            Nodes::FirMono { kernel } => (Ok(Box::new(FirMono::new(kernel))), None),
+            Nodes::FirStereo { kernel } => (Ok(Box::new(FirStereo::new(kernel))), None),
             // Mixers
             Nodes::StereoMixer => (Ok(Box::new(StereoMixer::default())), None),
             Nodes::StereoToMono => (Ok(Box::new(StereoToMonoMixer::default())), None),

@@ -1,3 +1,7 @@
+use std::path::Iter;
+
+use crate::engine::buffer;
+
 /// Ringbuffer utility. Note, this is a
 /// ring buffer in the traditional sense, not some
 /// sort of spsc queue implementation. For that, I would
@@ -9,7 +13,7 @@ pub struct RingBuffer {
 impl RingBuffer {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            data: Vec::with_capacity(capacity),
+            data: vec![0.0; capacity],
             write_index: 0,
         }
     }

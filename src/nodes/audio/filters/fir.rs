@@ -1,33 +1,96 @@
-use generic_array::{ArrayLength, GenericArray};
-use typenum::U0;
+use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use typenum::{U0, U1, U2};
 
-use crate::engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*};
+use crate::{
+    engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
+    nodes::utils::{
+        port_utils::{generate_audio_inputs, generate_audio_outputs},
+        ring::RingBuffer,
+    },
+};
 
-pub struct FIR<C>
+/// TODO: A ring buffer and per sample is convenient,
+/// but this would likely have much better performance
+/// if we rewrite this as a fixed size down the line, for
+/// auto-vectorization, and maybe eventually
+/// some SIMD/intrinsics.
+///
+/// It's also worth noting that this operation in the
+/// time domain is O(n * m).
+///
+/// This is only effiecient with small kernels,
+/// for larger kernels, the operation is better in the frequency
+/// domain, which we might implement later. But, doing FFT on the
+/// input has a larger overhead until we reach fairly large kernel sizes.
+///
+/// If you have a kernel with 100+ taps, you should start considering
+/// a frequency domain implementation, which we will hopefully get to soon!
+///
+/// However, for really large kernels i.e convolution hall reverb,
+/// there is a bit of complixity with the overlapping and
+/// partioning logic required. I would appreciate some help
+/// designing a generalized solution for the above frequency domain
+/// problem.
+
+pub struct FirFilter<C>
 where
     C: ArrayLength,
 {
     kernel: Vec<f32>,
-    remainder: GenericArray<Vec<f32>, C>,
+    buffers: GenericArray<RingBuffer, C>,
     ports: Ports<C, C, U0, U0>,
 }
 
-impl<C, const AF: usize, const CF: usize> Node<AF, CF> for FIR<C>
+impl<C> FirFilter<C>
+where
+    C: ArrayLength,
+{
+    pub fn new(kernel: Vec<f32>) -> Self {
+        let length = kernel.len();
+        Self {
+            kernel,
+            buffers: GenericArray::generate(|_| RingBuffer::with_capacity(length)),
+            ports: Ports {
+                audio_inputs: Some(generate_audio_inputs()),
+                audio_outputs: Some(generate_audio_outputs()),
+                control_inputs: None,
+                control_outputs: None,
+            },
+        }
+    }
+}
+
+impl<C, const AF: usize, const CF: usize> Node<AF, CF> for FirFilter<C>
 where
     C: ArrayLength,
 {
     fn process(
         &mut self,
-        ctx: &mut AudioContext<AF>,
+        _: &mut AudioContext<AF>,
         ai: &Frame<AF>,
         ao: &mut Frame<AF>,
-        ci: &Frame<CF>,
-        co: &mut Frame<CF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
     ) {
+        for c in 0..C::USIZE {
+            let buffer = &mut self.buffers[c];
+
+            let input = ai[c];
+            let out = &mut ao[c];
+
+            for (n, &x) in input.iter().enumerate() {
+                buffer.push(x);
+                let mut y = 0.0;
+                for (k, &h) in self.kernel.iter().enumerate() {
+                    y += h * buffer.get(k);
+                }
+                out[n] = y;
+            }
+        }
     }
 }
 
-impl<C> PortedErased for FIR<C>
+impl<C> PortedErased for FirFilter<C>
 where
     C: ArrayLength,
 {
@@ -44,3 +107,6 @@ where
         self.ports.get_control_outputs()
     }
 }
+
+pub type FirMono = FirFilter<U1>;
+pub type FirStereo = FirFilter<U2>;
