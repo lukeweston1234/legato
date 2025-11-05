@@ -3,5 +3,6 @@ pub mod delay;
 pub mod filters;
 pub mod mixer;
 pub mod osc;
+pub mod oversample;
 pub mod sampler;
 pub mod stereo;
