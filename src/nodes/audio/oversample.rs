@@ -1,3 +1,4 @@
+use crate::engine::buffer::Frame;
 use generic_array::{ArrayLength, GenericArray};
 use typenum::{PartialDiv, U64};
 
@@ -68,3 +69,6 @@ const KERNEL: GenericArray<f32, U64> = GenericArray::from_array([
     -0.011818053082159082,
     0.003933758811923991,
 ]);
+
+/// A naive 2x rate adapter. Upsamples audio x2 coming in, and back
+/// to audio rate on the way down.
