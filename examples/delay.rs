@@ -28,8 +28,8 @@ static A: AllocDisabler = AllocDisabler;
 
 // TODO: We configure this somewhere?
 
-const SAMPLE_RATE: u32 = 44_000;
-const BLOCK_SIZE: usize = 2048;
+const SAMPLE_RATE: u32 = 48_000;
+const BLOCK_SIZE: usize = 1024;
 
 const DECIMATION_FACTOR: f32 = 32.0;
 
@@ -274,6 +274,8 @@ fn main() {
     let host = cpal::host_from_id(cpal::HostId::CoreAudio).expect("JACK host not available");
 
     let device = host.default_output_device().unwrap();
+
+    println!("{:?}", device.default_output_config());
 
     let config = StreamConfig {
         channels: U2::U16,

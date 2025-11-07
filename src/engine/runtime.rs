@@ -88,6 +88,10 @@ where
     pub fn get_context_mut(&mut self) -> &mut AudioContext<AF> {
         &mut self.context
     }
+    // F32 is a bit weird here, but we cast so frequently why not
+    pub fn get_sample_rate(&self) -> f32 {
+        self.context.get_sample_rate()
+    }
     // TODO: Graphs as nodes again
     pub fn next_block(
         &mut self,

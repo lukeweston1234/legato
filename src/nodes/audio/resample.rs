@@ -99,7 +99,7 @@ where
 {
     fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<M>) {
         debug_assert!(N * 2 == M); // Ensure that we have the correct
-        debug_assert!(ai.len() == ao.len() * 2);
+        debug_assert!(ai.len() == ao.len());
 
         // Zero insert to expand buffer, and just write to out
         for c in 0..C::USIZE {

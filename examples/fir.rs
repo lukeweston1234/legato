@@ -28,8 +28,8 @@ static A: AllocDisabler = AllocDisabler;
 
 // TODO: We configure this somewhere?
 
-const SAMPLE_RATE: u32 = 44_000;
-const BLOCK_SIZE: usize = 2048;
+const SAMPLE_RATE: u32 = 48_000;
+const BLOCK_SIZE: usize = 1024;
 
 const DECIMATION_FACTOR: f32 = 32.0;
 

@@ -10,7 +10,7 @@ use crate::{
         delay::{DelayLine, DelayReadMono, DelayReadStereo, DelayWriteMono, DelayWriteStereo},
         filters::fir::{FirMono, FirStereo},
         mixer::*,
-        osc::{OscMono, OscStereo},
+        sine::{SineMono, SineStereo},
         sampler::{SamplerMono, SamplerStereo},
         stereo::Stereo,
     },
@@ -22,8 +22,12 @@ use typenum::{U1, U2};
 
 pub enum Nodes<const AF: usize> {
     // Osc
-    OscMono,
-    OscStereo,
+    OscMono {
+        freq: f32
+    },
+    OscStereo {
+        freq: f32
+    },
     // Fan mono to stereo
     Stereo,
     // Sampler utils
@@ -112,8 +116,8 @@ where
             Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError>,
             Option<AddNodeResponse>,
         ) = match node {
-            Nodes::OscMono => (Ok(Box::new(OscMono::default())), None),
-            Nodes::OscStereo => (Ok(Box::new(OscStereo::default())), None),
+            Nodes::OscMono { freq } => (Ok(Box::new(SineMono::new(freq, 0.0))), None),
+            Nodes::OscStereo { freq } => (Ok(Box::new(SineStereo::new(freq, 0.0))), None),
             Nodes::Stereo => (Ok(Box::new(Stereo::default())), None),
             // Samplers
             Nodes::SamplerMono { props } => (Ok(Box::new(SamplerMono::new(props))), None),
