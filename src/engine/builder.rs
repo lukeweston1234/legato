@@ -10,9 +10,10 @@ use crate::{
         delay::{DelayLine, DelayReadMono, DelayReadStereo, DelayWriteMono, DelayWriteStereo},
         filters::fir::{FirMono, FirStereo},
         mixer::*,
-        sine::{SineMono, SineStereo},
         sampler::{SamplerMono, SamplerStereo},
+        sine::{SineMono, SineStereo},
         stereo::Stereo,
+        sweep::Sweep,
     },
 };
 
@@ -23,10 +24,10 @@ use typenum::{U1, U2};
 pub enum Nodes<const AF: usize> {
     // Osc
     OscMono {
-        freq: f32
+        freq: f32,
     },
     OscStereo {
-        freq: f32
+        freq: f32,
     },
     // Fan mono to stereo
     Stereo,
@@ -80,8 +81,14 @@ pub enum Nodes<const AF: usize> {
     EightTrackStereoMixer, // U16 -> U2
     FourToMonoMixer,       // U8  -> U1
     TwoTrackMonoMixer,     // U4 -> U1
-                           // SvfMono,
-                           // SvfStereo
+    // SvfMono,
+    // SvfStereo
+
+    // Utils
+    Sweep {
+        range: (f32, f32),
+        duration: Duration,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -186,6 +193,8 @@ where
             Nodes::FourTrackStereoMixer => (Ok(Box::new(FourTrackStereoMixer::default())), None),
             Nodes::EightTrackStereoMixer => (Ok(Box::new(EightTrackStereoMixer::default())), None),
             Nodes::TwoTrackMonoMixer => (Ok(Box::new(TwoTrackMonoMixer::default())), None),
+            // Utils
+            Nodes::Sweep { range, duration } => (Ok(Box::new(Sweep::new(range, duration))), None),
         };
 
         match node_created {

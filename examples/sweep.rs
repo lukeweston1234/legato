@@ -1,28 +1,26 @@
+use std::{path::Path, time::Duration};
+
 use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
+    traits::{DeviceTrait, StreamTrait},
     Device,
 };
-use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
+use cpal::{BuildStreamError, StreamConfig};
 use generic_array::ArrayLength;
 use legato::{
     backend::write_data_cpal,
     engine::{
         builder::Nodes,
-        graph::Connection,
         runtime::{build_runtime, Runtime},
     },
+    nodes::utils::render::render,
 };
 use legato::{
-    engine::{
-        builder::RuntimeBuilder,
-        graph::ConnectionEntry,
-        port::{PortRate, Ports},
-    },
+    engine::{builder::RuntimeBuilder, port::Ports},
     nodes::utils::port_utils::generate_audio_outputs,
 };
 
 use assert_no_alloc::*;
-use typenum::{U0, U2};
+use typenum::{U0, U1, U2};
 
 #[cfg(debug_assertions)]
 #[global_allocator]
@@ -69,7 +67,7 @@ where
 }
 
 fn main() {
-    let mut runtime: Runtime<BLOCK_SIZE, CONTROL_FRAME_SIZE, U2, U0> = build_runtime(
+    let mut runtime: Runtime<BLOCK_SIZE, CONTROL_FRAME_SIZE, U1, U0> = build_runtime(
         CAPACITY,
         SAMPLE_RATE as f32,
         CONTROL_RATE,
@@ -82,41 +80,15 @@ fn main() {
     );
 
     let (a, _) = runtime
-        .add_node_api(Nodes::OscMono { freq: 440.0 })
+        .add_node_api(Nodes::Sweep {
+            range: (20.0, 26_000.0),
+            duration: Duration::from_secs(5),
+        })
         .expect("Could not add node");
 
-    let (b, _) = runtime
-        .add_node_api(Nodes::Stereo)
-        .expect("Could not add node");
+    runtime.set_sink_key(a).expect("Bad sink key!");
 
-    let _ = runtime.add_edge(Connection {
-        source: ConnectionEntry {
-            node_key: a,
-            port_index: 0,
-            port_rate: PortRate::Audio,
-        },
-        sink: ConnectionEntry {
-            node_key: b,
-            port_index: 0,
-            port_rate: PortRate::Audio,
-        },
-    });
+    let path = Path::new("example.wav");
 
-    runtime.set_sink_key(b).expect("Bad sink key!");
-
-    #[cfg(target_os = "linux")]
-    let host = cpal::host_from_id(cpal::HostId::Jack).expect("JACK host not available");
-
-    #[cfg(target_os = "macos")]
-    let host = cpal::host_from_id(cpal::HostId::CoreAudio).expect("JACK host not available");
-
-    let device = host.default_output_device().unwrap();
-
-    let config = StreamConfig {
-        channels: CHANNEL_COUNT as u16,
-        sample_rate: SampleRate(SAMPLE_RATE),
-        buffer_size: BufferSize::Fixed(BLOCK_SIZE as u32),
-    };
-
-    run(&device, &config, runtime).expect("Runtime panic!");
+    render(runtime, path, SAMPLE_RATE, Duration::from_secs(5)).unwrap();
 }

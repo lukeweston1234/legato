@@ -3,3 +3,5 @@
 /samples
 example.png
 example.wav
+*.png
+*.wav
