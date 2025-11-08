@@ -9,12 +9,13 @@ use crate::{
     engine::{
         audio_context::AudioContext,
         buffer::Frame,
-        node::Node,
+        node::{FrameSize, Node},
         port::{Stereo, *},
     },
-    nodes::utils::{decode_with_ffmpeg, generate_audio_outputs},
+    nodes::utils::{ffmpeg::decode_with_ffmpeg, port_utils::generate_audio_outputs},
 };
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AudioSampleError {
     PathNotFound,
     FailedDecoding,
@@ -45,7 +46,7 @@ where
 }
 
 // TODO: This is lazy, maybe integrate with symponia crate or whatever it's called?
-pub struct Sampler<const AF: usize, Ao>
+pub struct Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -55,7 +56,7 @@ where
     ports: Ports<U0, Ao, U0, U0>,
 }
 
-impl<const AF: usize, Ao> Sampler<AF, Ao>
+impl<Ao> Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -74,8 +75,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for Sampler<AF, Ao>
+impl<AF, CF, Ao> Node<AF, CF> for Sampler<Ao>
 where
+    AF: FrameSize,
+    CF: FrameSize,
     Ao: ArrayLength,
 {
     fn process(
@@ -88,33 +91,30 @@ where
     ) {
         permit_alloc(|| {
             // 128 bytes allocated in the load_full. Can we do better?
-            match self.data.load_full() {
-                Some(buf) => {
-                    let len = buf[0].len();
-                    for n in 0..AF {
-                        let i = self.read_pos + n;
-                        for c in 0..Ao::USIZE {
-                            ao[c][n] = if i < len {
-                                buf[c][i]
-                            } else if self.is_looping {
-                                buf[c][i % len]
-                            } else {
-                                0.0
-                            };
-                        }
+            if let Some(buf) = self.data.load_full() {
+                let len = buf[0].len();
+                for n in 0..AF::USIZE {
+                    let i = self.read_pos + n;
+                    for c in 0..Ao::USIZE {
+                        ao[c][n] = if i < len {
+                            buf[c][i]
+                        } else if self.is_looping {
+                            buf[c][i % len]
+                        } else {
+                            0.0
+                        };
                     }
-                    self.read_pos = if self.is_looping {
-                        (self.read_pos + AF) % len // If we're looping, wrap around
-                    } else {
-                        (self.read_pos + AF).min(len) // If we're not looping, cap at the end
-                    };
                 }
-                None => (),
+                self.read_pos = if self.is_looping {
+                    (self.read_pos + AF::USIZE) % len // If we're looping, wrap around
+                } else {
+                    (self.read_pos + AF::USIZE).min(len) // If we're not looping, cap at the end
+                };
             }
         })
     }
 }
-impl<const AF: usize, Ao> PortedErased for Sampler<AF, Ao>
+impl<Ao> PortedErased for Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -132,5 +132,5 @@ where
     }
 }
 
-pub type SamplerMono<const AF: usize> = Sampler<AF, Mono>;
-pub type SamplerStereo<const AF: usize> = Sampler<AF, Stereo>;
+pub type SamplerMono<const AF: usize> = Sampler<Mono>;
+pub type SamplerStereo<const AF: usize> = Sampler<Stereo>;

@@ -1,69 +1,42 @@
-use std::{cell::UnsafeCell, sync::Arc, time::Duration};
-
 use arc_swap::ArcSwapOption;
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    Device,
-};
-use cpal::{BufferSize, BuildStreamError, SampleRate, StreamConfig};
+use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::{BufferSize, SampleRate, StreamConfig};
 use legato::{
-    backend::write_data_cpal,
+    backend::out::start_audio_thread,
     engine::{
-        audio_context,
         builder::{AddNodeResponse, Nodes},
         graph::{Connection, ConnectionEntry},
-        port::{PortRate, Stereo},
+        port::{PortRate, Ports},
         runtime::{build_runtime, Runtime},
     },
-    nodes::audio::delay::{self, DelayLine},
+    nodes::utils::port_utils::generate_audio_outputs,
 };
 use legato::{engine::builder::RuntimeBuilder, nodes::audio::sampler::AudioSampleBackend};
+use std::{sync::Arc, time::Duration};
 
-use assert_no_alloc::*;
-
-#[cfg(debug_assertions)]
-#[global_allocator]
-static A: AllocDisabler = AllocDisabler;
-
-// TODO: We configure this somewhere?
-
-const SAMPLE_RATE: u32 = 44_000;
-const BLOCK_SIZE: usize = 2048;
-
-const DECIMATION_FACTOR: f32 = 32.0;
-
-// 32 seems nice, we likely get a size that could have some vectorization wins?
-const CONTROL_RATE: f32 = SAMPLE_RATE as f32 / DECIMATION_FACTOR;
-const CONTROL_FRAME_SIZE: usize = BLOCK_SIZE / DECIMATION_FACTOR as usize;
-
-const CAPACITY: usize = 16;
-const CHANNEL_COUNT: usize = 2;
-
-fn run<const AF: usize, const CF: usize, const C: usize>(
-    device: &Device,
-    config: &StreamConfig,
-    mut runtime: Runtime<AF, CF, C>,
-) -> Result<(), BuildStreamError> {
-    let stream = device.build_output_stream(
-        &config,
-        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            // assert_no_alloc(|| write_data_cpal::<AF, CF, C, f32>(data, &mut runtime))
-            write_data_cpal(data, &mut runtime);
-        },
-        |err| eprintln!("An output stream error occurred: {}", err),
-        None,
-    )?;
-
-    stream.play().unwrap();
-
-    std::thread::park();
-
-    Ok(())
-}
+use typenum::{Unsigned, U0, U2, U2048, U64};
 
 fn main() {
-    let mut runtime: Runtime<BLOCK_SIZE, CONTROL_FRAME_SIZE, CHANNEL_COUNT> =
-        build_runtime(CAPACITY, SAMPLE_RATE as f32, CONTROL_RATE);
+    type BlockSize = U2048;
+    type ControlSize = U64;
+    type ChannelCount = U2;
+
+    const SAMPLE_RATE: u32 = 44_100;
+    const CAPACITY: usize = 16;
+    const DECIMATION_FACTOR: f32 = 32.0;
+    const CONTROL_RATE: f32 = SAMPLE_RATE as f32 / DECIMATION_FACTOR;
+
+    let mut runtime: Runtime<BlockSize, ControlSize, ChannelCount, U0> = build_runtime(
+        CAPACITY,
+        SAMPLE_RATE as f32,
+        CONTROL_RATE,
+        Ports {
+            audio_inputs: None,
+            audio_outputs: Some(generate_audio_outputs()),
+            control_inputs: None,
+            control_outputs: None,
+        },
+    );
 
     let data = Arc::new(ArcSwapOption::new(None));
     let backend = AudioSampleBackend::new(data.clone());
@@ -74,7 +47,9 @@ fn main() {
         })
         .expect("Could not add sampler");
 
-    let _ = backend.load_file("./samples/amen.wav");
+    backend
+        .load_file("./samples/amen.wav")
+        .expect("Could not load amen sample!");
 
     let (delay_write, delay_write_key_res) = runtime
         .add_node_api(Nodes::DelayWriteStereo {
@@ -84,9 +59,7 @@ fn main() {
 
     let res = delay_write_key_res.unwrap();
 
-    let delay_key = match res {
-        AddNodeResponse::DelayWrite(delay_key) => delay_key,
-    };
+    let AddNodeResponse::DelayWrite(delay_key) = res;
 
     let (delay_read, _) = runtime
         .add_node_api(Nodes::DelayReadStereo {
@@ -261,11 +234,13 @@ fn main() {
 
     let device = host.default_output_device().unwrap();
 
+    println!("{:?}", device.default_output_config());
+
     let config = StreamConfig {
-        channels: CHANNEL_COUNT as u16,
-        sample_rate: SampleRate(SAMPLE_RATE as u32),
-        buffer_size: BufferSize::Fixed(BLOCK_SIZE as u32),
+        channels: U2::U16,
+        sample_rate: SampleRate(SAMPLE_RATE),
+        buffer_size: BufferSize::Fixed(BlockSize::U32),
     };
 
-    run(&device, &config, runtime).expect("Runtime panic!");
+    start_audio_thread(&device, &config, runtime).expect("Runtime panic!");
 }

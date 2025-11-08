@@ -1,33 +1,45 @@
-use std::{cell::UnsafeCell, iter::Cycle, ops::Add, sync::Arc, time::Duration};
+use std::{ops::Mul, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
-use generic_array::GenericArray;
+use generic_array::{ArrayLength, GenericArray};
 
 use crate::{
     engine::{
-        audio_context::{AudioContext, DelayLineKey},
+        audio_context::DelayLineKey,
         graph::NodeKey,
-        node::Node,
-        port::Mono,
-        runtime::Runtime,
+        node::{FrameSize, Node},
+        runtime::{Runtime, RuntimeErased},
     },
     nodes::audio::{
         audio_ops::{ApplyOpMono, ApplyOpStereo},
         delay::{DelayLine, DelayReadMono, DelayReadStereo, DelayWriteMono, DelayWriteStereo},
+        filters::fir::{FirMono, FirStereo},
         mixer::*,
-        osc::{OscMono, OscStereo},
         sampler::{SamplerMono, SamplerStereo},
+        sine::{SineMono, SineStereo},
         stereo::Stereo,
+        subgraph::Oversample2X,
+        sweep::Sweep,
     },
 };
 
-use typenum::{U1, U2};
+use typenum::{Prod, U1, U2};
 
-// TODO: Port over proc macro from other repo
-pub enum Nodes<const AF: usize> {
+// TODO: Find nicer solution for arbitrary port size
+
+pub enum Nodes<AF, CF>
+where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+{
     // Osc
-    OscMono,
-    OscStereo,
+    OscMono {
+        freq: f32,
+    },
+    OscStereo {
+        freq: f32,
+    },
     // Fan mono to stereo
     Stereo,
     // Sampler utils
@@ -52,6 +64,13 @@ pub enum Nodes<const AF: usize> {
         key: DelayLineKey,
         offsets: [Duration; 2],
     },
+    // Filter
+    FirMono {
+        kernel: Vec<f32>,
+    },
+    FirStereo {
+        kernel: Vec<f32>,
+    },
     // Ops
     AddMono {
         props: f32,
@@ -73,8 +92,20 @@ pub enum Nodes<const AF: usize> {
     EightTrackStereoMixer, // U16 -> U2
     FourToMonoMixer,       // U8  -> U1
     TwoTrackMonoMixer,     // U4 -> U1
-                           // SvfMono,
-                           // SvfStereo
+    // SvfMono,
+    // SvfStereo
+    // Subgraph
+    Subgraph {
+        runtime: Box<dyn RuntimeErased<AF, CF> + Send + 'static>,
+    },
+    Subgraph2XOversampled {
+        runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>,
+    },
+    // Utils
+    Sweep {
+        range: (f32, f32),
+        duration: Duration,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -89,24 +120,36 @@ pub enum AddNodeResponse {
     DelayWrite(DelayLineKey),
 }
 
-pub trait RuntimeBuilder<const AF: usize> {
+pub trait RuntimeBuilder<AF, CF>
+where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+{
     fn add_node_api(
         &mut self,
-        node: Nodes<AF>,
+        node: Nodes<AF, CF>,
     ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError>;
 }
 
-impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Runtime<AF, CF, C> {
+impl<AF, CF, C, Ci> RuntimeBuilder<AF, CF> for Runtime<AF, CF, C, Ci>
+where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+    Ci: ArrayLength,
+    C: ArrayLength,
+{
     fn add_node_api(
         &mut self,
-        node: Nodes<AF>,
+        node: Nodes<AF, CF>,
     ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError> {
         let node_created: (
             Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError>,
             Option<AddNodeResponse>,
         ) = match node {
-            Nodes::OscMono => (Ok(Box::new(OscMono::default())), None),
-            Nodes::OscStereo => (Ok(Box::new(OscStereo::default())), None),
+            Nodes::OscMono { freq } => (Ok(Box::new(SineMono::new(freq, 0.0))), None),
+            Nodes::OscStereo { freq } => (Ok(Box::new(SineStereo::new(freq, 0.0))), None),
             Nodes::Stereo => (Ok(Box::new(Stereo::default())), None),
             // Samplers
             Nodes::SamplerMono { props } => (Ok(Box::new(SamplerMono::new(props))), None),
@@ -133,6 +176,7 @@ impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Ru
                 let delay_capacity = props.as_secs_f32() * samples;
 
                 let delay_line_mono = DelayLine::<AF, U1>::new(delay_capacity as usize);
+
                 let key = ctx.add_delay_line(Box::new(delay_line_mono));
 
                 (
@@ -164,6 +208,9 @@ impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Ru
             Nodes::MultStereo { props } => {
                 (Ok(Box::new(ApplyOpStereo::new(|a, b| a * b, props))), None)
             }
+            // Filters
+            Nodes::FirMono { kernel } => (Ok(Box::new(FirMono::new(kernel))), None),
+            Nodes::FirStereo { kernel } => (Ok(Box::new(FirStereo::new(kernel))), None),
             // Mixers
             Nodes::StereoMixer => (Ok(Box::new(StereoMixer::default())), None),
             Nodes::StereoToMono => (Ok(Box::new(StereoToMonoMixer::default())), None),
@@ -172,6 +219,13 @@ impl<const AF: usize, const CF: usize, const C: usize> RuntimeBuilder<AF> for Ru
             Nodes::FourTrackStereoMixer => (Ok(Box::new(FourTrackStereoMixer::default())), None),
             Nodes::EightTrackStereoMixer => (Ok(Box::new(EightTrackStereoMixer::default())), None),
             Nodes::TwoTrackMonoMixer => (Ok(Box::new(TwoTrackMonoMixer::default())), None),
+            Nodes::Subgraph { runtime } => (Ok(runtime), None),
+            Nodes::Subgraph2XOversampled { runtime } => {
+                (Ok(Box::new(Oversample2X::<AF, CF, C>::new(runtime))), None)
+            }
+
+            // Utils
+            Nodes::Sweep { range, duration } => (Ok(Box::new(Sweep::new(range, duration))), None),
         };
 
         match node_created {

@@ -18,6 +18,8 @@ arc-swap = "1.7.1"
 slotmap = "1.0.7"
 typenum = "1.18.0"
 generic-array = "1.2.0"
+approx = "0.5.1"
+hound = "3.5.1"
 
 
 [dev-dependencies]

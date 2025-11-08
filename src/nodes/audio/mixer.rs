@@ -2,8 +2,13 @@ use generic_array::ArrayLength;
 use typenum::{U0, U1, U16, U2, U4, U8};
 
 use crate::{
-    engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
-    nodes::utils::{generate_audio_inputs, generate_audio_outputs},
+    engine::{
+        audio_context::AudioContext,
+        buffer::Frame,
+        node::{FrameSize, Node},
+        port::*,
+    },
+    nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
 pub struct Mixer<Ai, Ao>
@@ -31,8 +36,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, Ai, Ao> Node<AF, CF> for Mixer<Ai, Ao>
+impl<AF, CF, Ai, Ao> Node<AF, CF> for Mixer<Ai, Ao>
 where
+    AF: FrameSize,
+    CF: FrameSize,
     Ai: ArrayLength,
     Ao: ArrayLength,
 {
@@ -57,7 +64,7 @@ where
             buffer.fill(0.0);
         }
 
-        for n in 0..AF {
+        for n in 0..AF::USIZE {
             for c in 0..Ai::USIZE {
                 let index = c % Ao::USIZE;
                 ao[index][n] += ai[c][n] / divisor;

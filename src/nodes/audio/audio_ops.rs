@@ -5,10 +5,10 @@ use crate::{
     engine::{
         audio_context::AudioContext,
         buffer::Frame,
-        node::Node,
+        node::{FrameSize, Node},
         port::{Mono, PortedErased, Ports, Stereo},
     },
-    nodes::utils::{generate_audio_inputs, generate_audio_outputs},
+    nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
 pub struct ApplyOp<C>
@@ -38,8 +38,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, C> Node<AF, CF> for ApplyOp<C>
+impl<AF, CF, C> Node<AF, CF> for ApplyOp<C>
 where
+    AF: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     fn process(
@@ -55,7 +57,7 @@ where
 
         // TODO: Control!
 
-        for n in 0..AF {
+        for n in 0..AF::USIZE {
             for c in 0..C::USIZE {
                 let output = (self.op)(ai[c][n], self.b);
                 ao[c][n] = output;

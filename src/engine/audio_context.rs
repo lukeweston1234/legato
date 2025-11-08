@@ -1,23 +1,27 @@
-use slotmap::{new_key_type, Key, SecondaryMap, SlotMap};
+use generic_array::ArrayLength;
+use slotmap::{new_key_type, SlotMap};
 
-use crate::{
-    engine::{buffer::Frame, graph::NodeKey},
-    nodes::audio::delay::{DelayLine, DelayLineErased},
-};
+use crate::{engine::buffer::Frame, nodes::audio::delay::DelayLineErased};
 
 new_key_type! { pub struct DelayLineKey; }
 
-pub struct AudioContext<const N: usize> {
+pub struct AudioContext<N>
+where
+    N: ArrayLength + Send + Sync + 'static,
+{
     sample_rate: f32, // avoiding frequent casting
     control_rate: f32,
     delay_lines: SlotMap<DelayLineKey, Box<dyn DelayLineErased<N>>>,
 }
 
-impl<const N: usize> AudioContext<N> {
+impl<N> AudioContext<N>
+where
+    N: ArrayLength + Send + Sync + 'static,
+{
     pub fn new(sample_rate: f32, control_rate: f32) -> Self {
         Self {
-            sample_rate: sample_rate,
-            control_rate: control_rate,
+            sample_rate,
+            control_rate,
             delay_lines: SlotMap::default(),
         }
     }
@@ -31,7 +35,7 @@ impl<const N: usize> AudioContext<N> {
     }
     pub fn write_block(&mut self, key: DelayLineKey, block: &Frame<N>) {
         let delay_line = self.delay_lines.get_mut(key).unwrap();
-        delay_line.write_block(block);
+        delay_line.write_block_erased(block);
     }
     #[inline(always)]
     pub fn get_delay_linear_interp(
@@ -41,9 +45,12 @@ impl<const N: usize> AudioContext<N> {
         offset: f32,
     ) -> f32 {
         let delay_line = self.delay_lines.get(key).unwrap();
-        delay_line.get_delay_linear_interp(channel, offset)
+        delay_line.get_delay_linear_interp_erased(channel, offset)
     }
-    pub fn add_delay_line(&mut self, delay_line: Box<dyn DelayLineErased<N>>) -> DelayLineKey {
+    pub fn add_delay_line(
+        &mut self,
+        delay_line: Box<dyn DelayLineErased<N> + Send + 'static>,
+    ) -> DelayLineKey {
         self.delay_lines.insert(delay_line)
     }
 }

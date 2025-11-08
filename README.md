@@ -1,45 +1,21 @@
-# mini-graph
+# Legato
 
-This project is aimed around creating a minimal audio graph in Rust, useful for experimentation or prototyping a larger audio application. I wanted a more lightweight DX than FunDSP, but FunDSP is far more feature complete. For the time being, I would suggest using that for any real audio applications.
+This is a WIP audio graph framework for Rust.
 
 ### Getting Started
 
-There is a flake.nix with the required dependencies. I normally use direnv allow, and have the dependencies taken care of for me.
+At the moment, it's fairly DIY. There are a few examples for setting this up with CPAL. There will also be a number of different scripts to graph data.
 
-### Example Node
-
-You can define a basic gain node like so:
-
-```rust
-use crate::node::Node;
-use crate::buffer::Frame;
-
-pub struct Gain<const FRAME_SIZE: usize> {
-    gain: f32 // For nodes using input's from other nodes, keep it here, but you can also easily make this an Arc<Atomic> and share to manipulate elsewhere
-}
-impl<const N: usize> Gain<N> {
-    pub fn new(gain: f32) -> Self {
-        Self {
-            gain
-        }
-    }
-}
-impl <const N: usize, const C: usize> Node<N, C> for Gain<N> {
-    fn process(&mut self, inputs: &[Frame<N, C>], output: &mut Frame<N, C>){
-        // This node only takes an input of one stereo buffer.
-        let input = inputs[0];
-        for n in 0..N { // For ever sample in our frame size
-            for c in 0..C { // For ever channel in our frame
-                output[c][n] = (input[c][n] * self.gain).clamp(-1.0 , 1.0);
-            }
-        }
-    }
-}
+```
+nix run .#apps.x86_64-linux.spectrogram -- --path ./example.wav --out ./example.png
 ```
 
-### Planned Features
 
-- Audio/midi input nodes
-- Proc macro for quickly generating graphs for prototyping
-- Sized/fixed graph for no_std environments, final deployments, etc.
-- Hopefully some sort of SIMD acceleration for more expensive operations like reverb, fft, etc.
+### Planned Features For 0.1.0
+
+- Minimal DSL or macros for graph construction
+- SIMD integration for hot paths like FIR, interpolation, etc.
+- Semi-tuned NixOS images
+- MIDI context and graph
+- Fancy docs and examples
+- Symponia integration instead of FFMPEG
