@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use generic_array::ArrayLength;
 use typenum::{U0, U1};
 
 use crate::{
@@ -40,7 +41,11 @@ impl Sweep {
     }
 }
 
-impl<const AF: usize, const CF: usize> Node<AF, CF> for Sweep {
+impl<AF, CF> Node<AF, CF> for Sweep
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     fn process(
         &mut self,
         ctx: &mut AudioContext<AF>,
@@ -53,7 +58,7 @@ impl<const AF: usize, const CF: usize> Node<AF, CF> for Sweep {
 
         let (min, max) = self.range;
 
-        for n in 0..AF {
+        for n in 0..AF::USIZE {
             let t = (self.elapsed as f32 / fs).min(self.duration.as_secs_f32());
             let freq = min * ((max / min).powf(t / self.duration.as_secs_f32()));
             self.elapsed += 1;

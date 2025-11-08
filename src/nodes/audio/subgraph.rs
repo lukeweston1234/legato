@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
+use std::ops::Mul;
 
 use crate::engine::port::{AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort};
-use crate::engine::runtime::{Runtime, RuntimeErased};
+use crate::engine::runtime::RuntimeErased;
 use crate::nodes::audio::resample::{Downsample2x, Upsample2x};
 use crate::{
     engine::{
@@ -13,7 +13,10 @@ use crate::{
     nodes::audio::resample::Resampler,
 };
 use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
-use typenum::U64;
+use typenum::{Integer, PartialDiv, PartialQuot, Prod, U2, U64};
+
+// Maybe I should not have been so harsh on C++ templates...
+// I have stared into the abyss, and the abyss said back "<<AF as Mul<UInt<UInt<UTerm, B1>, B0>>>::Output as PartialDiv<UInt<UInt<UTerm, B1>, B0>>>::Output"
 
 ///  A 2X oversampler node for a subgraph. Note: Currently these
 ///  FIR filters are designed for 48k to 96k. You will need to design
@@ -23,44 +26,43 @@ use typenum::U64;
 ///  This is because I want to use the graph to handle mixdowns more explicity.
 ///
 ///  Also, control is currently not resampled. This may be tweaked if there are issues.
-
-pub struct Oversample2X<const AF: usize, const SAF: usize, const CF: usize, C>
+pub struct Oversample2X<AF, CF, C>
 where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
     C: ArrayLength,
 {
-    runtime: Box<dyn RuntimeErased<SAF, CF> + Send + 'static>,
+    runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>,
     // Up and downsampler for oversampling
-    upsampler: Box<dyn Resampler<AF, SAF, C> + Send + 'static>,
-    downsampler: Box<dyn Resampler<SAF, AF, C> + Send + 'static>,
+    upsampler: Upsample2x<C>,
+    downsampler: Downsample2x<AF, C>,
     // Work buffers
-    upsampled_ai: GenericArray<Buffer<SAF>, C>,
+    upsampled_ai: GenericArray<Buffer<Prod<AF, U2>>, C>,
 }
 
-impl<const AF: usize, const SAF: usize, const CF: usize, C> Oversample2X<AF, SAF, CF, C>
+impl<AF, CF, C> Oversample2X<AF, CF, C>
 where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
     C: ArrayLength,
 {
-    pub fn new(
-        runtime: Box<dyn RuntimeErased<SAF, CF> + Send + 'static>,
-        upsampler: Box<dyn Resampler<AF, SAF, C> + Send + 'static>,
-        downsampler: Box<dyn Resampler<SAF, AF, C> + Send + 'static>,
-    ) -> Self {
-        debug_assert!(
-            AF * 2 == SAF,
-            "Must have 2X ratio between source and subgraph audio!"
-        );
+    pub fn new(runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>) -> Self {
         Self {
             runtime,
-            upsampler,
-            downsampler,
-            upsampled_ai: GenericArray::generate(|_| Buffer::SILENT),
+            upsampler: Upsample2x::new(cutoff_24k_coeffs.to_vec()),
+            downsampler: Downsample2x::new(cutoff_24k_coeffs.to_vec()), // TODO: Fine tune these filters
+            upsampled_ai: GenericArray::generate(|_| Buffer::silent()),
         }
     }
 }
 
-impl<const AF: usize, const SAF: usize, const CF: usize, C> Node<AF, CF>
-    for Oversample2X<AF, SAF, CF, C>
+impl<AF, CF, C> Node<AF, CF> for Oversample2X<AF, CF, C>
 where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
     C: ArrayLength,
 {
     fn process(
@@ -74,7 +76,7 @@ where
         debug_assert!(ai.len() == C::USIZE);
         debug_assert!(ao.len() == C::USIZE);
 
-        // Upsample to work buffer
+        // Upsample inputs
         self.upsampler.process_block(ai, &mut self.upsampled_ai);
         // Process next subgraph block
         let res = self
@@ -85,9 +87,11 @@ where
     }
 }
 
-impl<const AF: usize, const SAF: usize, const CF: usize, C> PortedErased
-    for Oversample2X<AF, SAF, CF, C>
+impl<AF, CF, C> PortedErased for Oversample2X<AF, CF, C>
 where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
     C: ArrayLength,
 {
     fn get_audio_inputs(&self) -> Option<&[AudioInputPort]> {
@@ -104,26 +108,8 @@ where
     }
 }
 
-pub fn build_2x_oversample<const AF: usize, const SAF: usize, const CF: usize, C, Ci>(
-    runtime: Box<dyn RuntimeErased<SAF, CF> + Send + 'static>,
-) -> Box<dyn Node<AF, CF> + Send + 'static>
-where
-    C: ArrayLength,
-    Ci: ArrayLength,
-{
-    // Reuse the same prototype kernel for both directions (simple but fine to start).
-    let upsampler = Box::new(Upsample2x::<C>::new(coeffs.to_vec()));
-    let downsampler = Box::new(Downsample2x::<SAF, C>::new(coeffs.to_vec()));
-
-    Box::new(Oversample2X::<AF, SAF, CF, C>::new(
-        runtime,
-        upsampler,
-        downsampler,
-    ))
-}
-
 // 64 tap remez exchange FIR filter that may be decent for 2x oversampling
-const coeffs: GenericArray<f32, U64> = GenericArray::from_array([
+const cutoff_24k_coeffs: GenericArray<f32, U64> = GenericArray::from_array([
     0.003_933_759,
     -0.011_818_053,
     0.002_154_722_3,

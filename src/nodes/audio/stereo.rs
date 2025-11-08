@@ -1,3 +1,5 @@
+use generic_array::ArrayLength;
+
 use crate::engine::audio_context::AudioContext;
 use crate::engine::port::{
     AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta,
@@ -16,7 +18,11 @@ impl Default for Stereo {
     }
 }
 
-impl<'a, const AF: usize, const CF: usize> Node<AF, CF> for Stereo {
+impl<'a, AF, CF> Node<AF, CF> for Stereo
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     fn process(
         &mut self,
         _: &mut AudioContext<AF>,
@@ -28,7 +34,7 @@ impl<'a, const AF: usize, const CF: usize> Node<AF, CF> for Stereo {
         debug_assert_eq!(ai.len(), 1);
         debug_assert_eq!(ao.len(), 2);
 
-        for n in 0..AF {
+        for n in 0..AF::USIZE {
             for c in 0..2 {
                 ao[c][n] = ai[0][n];
             }

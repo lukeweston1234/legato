@@ -47,7 +47,7 @@ where
 }
 
 // TODO: This is lazy, maybe integrate with symponia crate or whatever it's called?
-pub struct Sampler<const AF: usize, Ao>
+pub struct Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -57,7 +57,7 @@ where
     ports: Ports<U0, Ao, U0, U0>,
 }
 
-impl<const AF: usize, Ao> Sampler<AF, Ao>
+impl<Ao> Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -76,8 +76,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for Sampler<AF, Ao>
+impl<AF, CF, Ao> Node<AF, CF> for Sampler<Ao>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     Ao: ArrayLength,
 {
     fn process(
@@ -92,7 +94,7 @@ where
             // 128 bytes allocated in the load_full. Can we do better?
             if let Some(buf) = self.data.load_full() {
                 let len = buf[0].len();
-                for n in 0..AF {
+                for n in 0..AF::USIZE {
                     let i = self.read_pos + n;
                     for c in 0..Ao::USIZE {
                         ao[c][n] = if i < len {
@@ -105,15 +107,15 @@ where
                     }
                 }
                 self.read_pos = if self.is_looping {
-                    (self.read_pos + AF) % len // If we're looping, wrap around
+                    (self.read_pos + AF::USIZE) % len // If we're looping, wrap around
                 } else {
-                    (self.read_pos + AF).min(len) // If we're not looping, cap at the end
+                    (self.read_pos + AF::USIZE).min(len) // If we're not looping, cap at the end
                 };
             }
         })
     }
 }
-impl<const AF: usize, Ao> PortedErased for Sampler<AF, Ao>
+impl<Ao> PortedErased for Sampler<Ao>
 where
     Ao: ArrayLength,
 {
@@ -131,5 +133,5 @@ where
     }
 }
 
-pub type SamplerMono<const AF: usize> = Sampler<AF, Mono>;
-pub type SamplerStereo<const AF: usize> = Sampler<AF, Stereo>;
+pub type SamplerMono<const AF: usize> = Sampler<Mono>;
+pub type SamplerStereo<const AF: usize> = Sampler<Stereo>;

@@ -40,7 +40,7 @@ const CONTROL_FRAME_SIZE: usize = BLOCK_SIZE / DECIMATION_FACTOR as usize;
 const CAPACITY: usize = 16;
 const CHANNEL_COUNT: usize = 2;
 
-fn run<const AF: usize, const CF: usize, C, Ci>(
+fn run<AF, CF, C, Ci>(
     device: &Device,
     config: &StreamConfig,
     mut runtime: Runtime<AF, CF, C, Ci>,

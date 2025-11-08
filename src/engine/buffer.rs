@@ -1,49 +1,55 @@
 use core::fmt;
 use core::ops::{Deref, DerefMut};
-#[derive(Clone, Copy)]
-pub struct Buffer<const BUFFER_SIZE: usize> {
-    pub data: [f32; BUFFER_SIZE],
+use generic_array::{ArrayLength, GenericArray};
+
+#[derive(Clone)]
+pub struct Buffer<N: ArrayLength> {
+    pub data: GenericArray<f32, N>,
 }
 
-impl<const N: usize> Buffer<N> {
-    pub const SILENT: Self = Buffer { data: [0.0; N] };
+impl<N: ArrayLength> Buffer<N> {
+    pub fn silent() -> Self {
+        Self {
+            data: GenericArray::default(),
+        }
+    }
 }
 
-impl<const N: usize> Default for Buffer<N> {
+impl<N: ArrayLength> Default for Buffer<N> {
     fn default() -> Self {
-        Self::SILENT
+        Self::silent()
     }
 }
 
-impl<const N: usize> From<[f32; N]> for Buffer<N> {
-    fn from(data: [f32; N]) -> Self {
-        Buffer { data }
+impl<N: ArrayLength> From<GenericArray<f32, N>> for Buffer<N> {
+    fn from(data: GenericArray<f32, N>) -> Self {
+        Self { data }
     }
 }
 
-impl<const N: usize> fmt::Debug for Buffer<N> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.data[..], f)
+impl<N: ArrayLength> fmt::Debug for Buffer<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.data.as_slice(), f)
     }
 }
 
-impl<const N: usize> PartialEq for Buffer<N> {
+impl<N: ArrayLength> PartialEq for Buffer<N> {
     fn eq(&self, other: &Self) -> bool {
-        self[..] == other[..]
+        self.data == other.data
     }
 }
 
-impl<const N: usize> Deref for Buffer<N> {
+impl<N: ArrayLength> Deref for Buffer<N> {
     type Target = [f32];
     fn deref(&self) -> &Self::Target {
-        &self.data[..]
+        self.data.as_slice()
     }
 }
 
-impl<const N: usize> DerefMut for Buffer<N> {
+impl<N: ArrayLength> DerefMut for Buffer<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data[..]
+        self.data.as_mut_slice()
     }
 }
 
-pub type Frame<const BUFFER_SIZE: usize> = [Buffer<BUFFER_SIZE>];
+pub type Frame<N> = [Buffer<N>];

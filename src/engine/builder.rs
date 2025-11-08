@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{ops::Mul, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
 use generic_array::{ArrayLength, GenericArray};
@@ -18,16 +18,21 @@ use crate::{
         sampler::{SamplerMono, SamplerStereo},
         sine::{SineMono, SineStereo},
         stereo::Stereo,
-        subgraph::{build_2x_oversample, Oversample2X},
+        subgraph::Oversample2X,
         sweep::Sweep,
     },
 };
 
-use typenum::{U1, U2};
+use typenum::{Integer, PartialDiv, Prod, U1, U2};
 
 // TODO: Find nicer solution for arbitrary port size
 
-pub enum Nodes<const AF: usize, const SAF: usize, const CF: usize> {
+pub enum Nodes<AF, CF>
+where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
+{
     // Osc
     OscMono {
         freq: f32,
@@ -89,15 +94,13 @@ pub enum Nodes<const AF: usize, const SAF: usize, const CF: usize> {
     TwoTrackMonoMixer,     // U4 -> U1
     // SvfMono,
     // SvfStereo
-
     // Subgraph
     Subgraph {
-        runtime: Box<dyn RuntimeErased<SAF, CF> + Send + 'static>,
+        runtime: Box<dyn RuntimeErased<AF, CF> + Send + 'static>,
     },
     Subgraph2XOversampled {
-        runtime: Box<dyn RuntimeErased<SAF, CF> + Send + 'static>,
+        runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>,
     },
-
     // Utils
     Sweep {
         range: (f32, f32),
@@ -117,22 +120,29 @@ pub enum AddNodeResponse {
     DelayWrite(DelayLineKey),
 }
 
-pub trait RuntimeBuilder<const AF: usize, const SAF: usize, const CF: usize> {
-    fn add_node_api(
-        &mut self,
-        node: Nodes<AF, SAF, CF>,
-    ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError>;
-}
-
-impl<const AF: usize, const SAF: usize, const CF: usize, C, Ci> RuntimeBuilder<AF, SAF, CF>
-    for Runtime<AF, CF, C, Ci>
+pub trait RuntimeBuilder<AF, CF>
 where
-    C: ArrayLength,
-    Ci: ArrayLength,
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength,
 {
     fn add_node_api(
         &mut self,
-        node: Nodes<AF, SAF, CF>,
+        node: Nodes<AF, CF>,
+    ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError>;
+}
+
+impl<AF, CF, C, Ci> RuntimeBuilder<AF, CF> for Runtime<AF, CF, C, Ci>
+where
+    AF: ArrayLength + Mul<U2> + PartialDiv<U2> + Send + Sync + 'static,
+    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
+    CF: ArrayLength + Send + Sync + 'static,
+    Ci: ArrayLength,
+    C: ArrayLength,
+{
+    fn add_node_api(
+        &mut self,
+        node: Nodes<AF, CF>,
     ) -> Result<(NodeKey, Option<AddNodeResponse>), BuilderError> {
         let node_created: (
             Result<Box<dyn Node<AF, CF> + Send + 'static>, BuilderError>,
@@ -166,6 +176,7 @@ where
                 let delay_capacity = props.as_secs_f32() * samples;
 
                 let delay_line_mono = DelayLine::<AF, U1>::new(delay_capacity as usize);
+
                 let key = ctx.add_delay_line(Box::new(delay_line_mono));
 
                 (
@@ -208,8 +219,10 @@ where
             Nodes::FourTrackStereoMixer => (Ok(Box::new(FourTrackStereoMixer::default())), None),
             Nodes::EightTrackStereoMixer => (Ok(Box::new(EightTrackStereoMixer::default())), None),
             Nodes::TwoTrackMonoMixer => (Ok(Box::new(TwoTrackMonoMixer::default())), None),
-            Nodes::Subgraph { runtime } => (Ok(build_2x_oversample(runtime)), None),
-            Nodes::Subgraph2XOversampled { runtime } => (Ok(build_2x_oversample(runtime)), None),
+            Nodes::Subgraph { runtime } => (Ok(runtime), None),
+            Nodes::Subgraph2XOversampled { runtime } => {
+                (Ok(Box::new(Oversample2X::<AF, CF, C>::new(runtime))), None)
+            }
 
             // Utils
             Nodes::Sweep { range, duration } => (Ok(Box::new(Sweep::new(range, duration))), None),

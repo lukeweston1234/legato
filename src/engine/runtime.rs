@@ -12,8 +12,10 @@ use typenum::U0;
 // Arbitrary max init. inputs
 pub const MAX_INITIAL_INPUTS: usize = 32;
 
-pub struct Runtime<const AF: usize, const CF: usize, C, Ci>
+pub struct Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -30,8 +32,10 @@ where
     sink_key: Option<NodeKey>,
     ports: Ports<C, C, Ci, U0>, // Here, we assume that audio in and out is the same arity. If you need something different, pair with a mixer
 }
-impl<'a, const AF: usize, const CF: usize, C, Ci> Runtime<AF, CF, C, Ci>
+impl<'a, AF, CF, C, Ci> Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -47,8 +51,8 @@ where
             graph,
             port_sources_audio: audio_sources,
             port_sources_control: control_sources,
-            audio_inputs_scratch_buffers: vec![Buffer::<AF>::SILENT; MAX_INITIAL_INPUTS],
-            control_inputs_scratch_buffers: vec![Buffer::<CF>::SILENT; MAX_INITIAL_INPUTS],
+            audio_inputs_scratch_buffers: vec![Buffer::default(); MAX_INITIAL_INPUTS],
+            control_inputs_scratch_buffers: vec![Buffer::default(); MAX_INITIAL_INPUTS],
             sink_key: None,
             ports,
         }
@@ -60,9 +64,11 @@ where
         let node_key = self.graph.add_node(node);
 
         self.port_sources_audio
-            .insert(node_key, vec![Buffer::<AF>::SILENT; audio_inputs_length]);
-        self.port_sources_control
-            .insert(node_key, vec![Buffer::<CF>::SILENT; control_inputs_length]);
+            .insert(node_key, vec![Buffer::<AF>::silent(); audio_inputs_length]);
+        self.port_sources_control.insert(
+            node_key,
+            vec![Buffer::<CF>::silent(); control_inputs_length],
+        );
 
         node_key
     }
@@ -128,14 +134,14 @@ where
                     debug_assert!(connection.sink.node_key == *node_key);
                     match (connection.source.port_rate, connection.sink.port_rate) {
                         (PortRate::Audio, PortRate::Audio) => {
-                            for n in 0..AF {
+                            for n in 0..AF::USIZE {
                                 self.audio_inputs_scratch_buffers[connection.sink.port_index][n] +=
                                     self.port_sources_audio[connection.source.node_key]
                                         [connection.source.port_index][n];
                             }
                         }
                         (PortRate::Control, PortRate::Control) => {
-                            for n in 0..AF {
+                            for n in 0..AF::USIZE {
                                 self.control_inputs_scratch_buffers[connection.sink.port_index]
                                     [n] += self.port_sources_control[connection.source.node_key]
                                     [connection.source.port_index][n];
@@ -175,8 +181,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, C, Ci> Node<AF, CF> for Runtime<AF, CF, C, Ci>
+impl<AF, CF, C, Ci> Node<AF, CF> for Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -195,8 +203,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, C, Ci> PortedErased for Runtime<AF, CF, C, Ci>
+impl<AF, CF, C, Ci> PortedErased for Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -214,13 +224,15 @@ where
     }
 }
 
-pub fn build_runtime<const AF: usize, const CF: usize, C, Ci>(
+pub fn build_runtime<AF, CF, C, Ci>(
     initial_capacity: usize,
     sample_rate: f32,
     control_rate: f32,
     ports: Ports<C, C, Ci, U0>,
 ) -> Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -233,12 +245,18 @@ where
 /// This trait allows us to erase runtime generics,
 /// for to more easily add oversampled subgraphs to
 /// an existing runtime.
-pub trait RuntimeErased<const AF: usize, const CF: usize>: Node<AF, CF> {
+pub trait RuntimeErased<AF, CF>: Node<AF, CF>
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &[Buffer<AF>];
 }
 
-impl<const AF: usize, const CF: usize, C, Ci> RuntimeErased<AF, CF> for Runtime<AF, CF, C, Ci>
+impl<AF, CF, C, Ci> RuntimeErased<AF, CF> for Runtime<AF, CF, C, Ci>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
     Ci: ArrayLength,
 {

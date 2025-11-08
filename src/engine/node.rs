@@ -1,6 +1,12 @@
+use generic_array::ArrayLength;
+
 use crate::engine::{audio_context::AudioContext, buffer::Frame, port::PortedErased};
 
-pub trait Node<const AF: usize, const CF: usize>: PortedErased {
+pub trait Node<AF, CF>: PortedErased
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     fn process(
         &mut self,
         ctx: &mut AudioContext<AF>,

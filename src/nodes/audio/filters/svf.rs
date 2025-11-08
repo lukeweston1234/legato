@@ -268,7 +268,7 @@
 
 // const CUTOFF_EPSILON: f32 = 1e-3;
 
-// impl<const N: usize, Ai, Ci, O> Node<N> for Svf<Ai, Ci, O>
+// impl<N, Ai, Ci, O> Node<N> for Svf<Ai, Ci, O>
 // where
 //     Ai: Unsigned + Add<Ci> + ArrayLength,
 //     Ci: Unsigned,

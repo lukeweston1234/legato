@@ -9,10 +9,10 @@ use generic_array::ArrayLength;
 // to graph aliasing and other visualizations.
 
 #[inline(always)]
-pub fn write_data_cpal<const AF: usize, const CF: usize, C, Ci, T>(
-    output: &mut [T],
-    runtime: &mut Runtime<AF, CF, C, Ci>,
-) where
+pub fn write_data_cpal<AF, CF, C, Ci, T>(output: &mut [T], runtime: &mut Runtime<AF, CF, C, Ci>)
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
     T: SizedSample + FromSample<f64>,
     C: ArrayLength,
     Ci: ArrayLength,

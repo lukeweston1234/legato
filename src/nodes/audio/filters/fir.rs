@@ -75,8 +75,10 @@ where
     }
 }
 
-impl<C, const AF: usize, const CF: usize> Node<AF, CF> for FirFilter<C>
+impl<C, AF, CF> Node<AF, CF> for FirFilter<C>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     C: ArrayLength,
 {
     fn process(
@@ -90,7 +92,7 @@ where
         for c in 0..C::USIZE {
             let channel_state = &mut self.state[c];
 
-            let input = ai[c];
+            let input = &ai[c];
             let out = &mut ao[c];
             // I don't think the auto-vectorization gods can save me here
             for (n, x) in input.iter().enumerate() {

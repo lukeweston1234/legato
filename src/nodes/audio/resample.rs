@@ -3,16 +3,18 @@ use crate::{
     nodes::utils::ring::RingBuffer,
 };
 use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
-use typenum::U64;
+use std::ops::Mul;
+use typenum::{PartialDiv, PartialQuot, Prod, U2};
 
 /// A naive 2x rate adapter. Upsamples audio x2 coming in, and back
 /// to audio rate on the way down.
 
 // TODO: Polyphase and half band filters, SIMD
 
-pub trait Resampler<const N: usize, const M: usize, C>
+pub trait Resampler<N, M, C>
 where
-    C: ArrayLength,
+    N: ArrayLength,
+    M: ArrayLength,
 {
     fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<M>);
 }
@@ -38,19 +40,20 @@ where
     }
 }
 
-impl<const N: usize, const M: usize, C> Resampler<N, M, C> for Upsample2x<C>
+impl<N, C> Resampler<N, Prod<N, U2>, C> for Upsample2x<C>
 where
+    N: ArrayLength + Mul<U2>,
+    Prod<N, U2>: ArrayLength,
     C: ArrayLength,
 {
-    fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<M>) {
-        debug_assert!(N * 2 == M); // Ensure that we have the correct
+    fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<Prod<N, U2>>) {
         debug_assert!(ai.len() == ao.len());
 
         // Zero insert to expand buffer, and just write to out
         for c in 0..C::USIZE {
-            let input = ai[c];
+            let input = &ai[c];
             let out = &mut ao[c];
-            for n in 0..N {
+            for n in 0..N::USIZE {
                 out[2 * n] = input[n];
                 out[(2 * n) + 1] = 0.0;
             }
@@ -75,17 +78,21 @@ where
     }
 }
 
-pub struct Downsample2x<const NX2: usize, C>
+pub struct Downsample2x<N, C>
 where
+    N: ArrayLength + Mul<U2>,
+    Prod<N, U2>: ArrayLength,
     C: ArrayLength,
 {
     coeffs: Vec<f32>,
     state: GenericArray<RingBuffer, C>,
-    filtered: GenericArray<Buffer<NX2>, C>,
+    filtered: GenericArray<Buffer<N>, C>,
 }
 
-impl<const NX2: usize, C> Downsample2x<NX2, C>
+impl<N, C> Downsample2x<N, C>
 where
+    N: ArrayLength + Mul<U2>,
+    Prod<N, U2>: ArrayLength,
     C: ArrayLength,
 {
     pub fn new(coeffs: Vec<f32>) -> Self {
@@ -93,24 +100,26 @@ where
         Self {
             coeffs,
             state: GenericArray::generate(|_| RingBuffer::with_capacity(kernel_len)),
-            filtered: GenericArray::generate(|_| Buffer::SILENT),
+            filtered: GenericArray::generate(|_| Buffer::silent()),
         }
     }
 }
 
-impl<const NX2: usize, const M: usize, C> Resampler<NX2, M, C> for Downsample2x<NX2, C>
+/// Downsampler, it's worth noting that N is the traditional audio rate
+impl<N, C> Resampler<Prod<N, U2>, N, C> for Downsample2x<N, C>
 where
+    N: ArrayLength + Mul<U2>,
+    Prod<N, U2>: ArrayLength,
     C: ArrayLength,
 {
-    fn process_block(&mut self, ai: &Frame<NX2>, ao: &mut Frame<M>) {
-        debug_assert!(NX2 / 2 == M); // Ensure that we have the correct
+    fn process_block(&mut self, ai: &Frame<Prod<N, U2>>, ao: &mut Frame<N>) {
         debug_assert!(ai.len() == ao.len());
 
         // Naive FIR filter to remove frequencies above fs/4
         for c in 0..C::USIZE {
             let filter_state = &mut self.state[c];
 
-            let input = ai[c];
+            let input = &ai[c];
             let out = &mut self.filtered[c];
             // I don't think the auto-vectorization gods can save me here
             for (n, &x) in input.iter().enumerate() {
@@ -123,11 +132,13 @@ where
             }
         }
 
+        let m_size = N::USIZE / 2;
+
         // Decimate by 2
         for c in 0..C::USIZE {
-            let input = self.filtered[c];
+            let input = &self.filtered[c];
             let out = &mut ao[c];
-            for m in 0..M {
+            for m in 0..m_size {
                 out[m] = input[m * 2]
             }
         }

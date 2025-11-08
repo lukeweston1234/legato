@@ -1,5 +1,5 @@
 use generic_array::{arr, ArrayLength, GenericArray};
-use typenum::{U0, U1, U2, Unsigned};
+use typenum::{Unsigned, U0, U1};
 
 use crate::engine::audio_context::AudioContext;
 use crate::engine::node::Node;
@@ -25,14 +25,12 @@ where
 {
     pub fn new(freq: f32, phase: f32) -> Self {
         // FM is audio rate, frequency
-        let audio_inputs = arr![
-            AudioInputPort {
-                meta: PortMeta {
-                    name: "fm",
-                    index: 0
-                },
+        let audio_inputs = arr![AudioInputPort {
+            meta: PortMeta {
+                name: "fm",
+                index: 0
             },
-        ];
+        },];
 
         let audio_outputs: GenericArray<AudioOutputPort, Ao> = generate_audio_outputs::<Ao>();
         let ports = Ports {
@@ -42,11 +40,7 @@ where
             control_outputs: None,
         };
 
-        Self {
-            freq,
-            phase,
-            ports,
-        }
+        Self { freq, phase, ports }
     }
 
     pub fn default() -> Self {
@@ -54,8 +48,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, Ao> Node<AF, CF> for Sine<U1, Ao, U0, U0>
+impl<AF, CF, Ao> Node<AF, CF> for Sine<U1, Ao, U0, U0>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     Ao: ArrayLength,
 {
     fn process(
@@ -69,8 +65,8 @@ where
         debug_assert_eq!(ai.len(), U1::USIZE);
         debug_assert_eq!(ao.len(), Ao::USIZE);
         let fs = ctx.get_sample_rate();
-        
-        for n in 0..AF {
+
+        for n in 0..AF::USIZE {
             let mod_amt = ai[0][n];
 
             let freq = self.freq + mod_amt;

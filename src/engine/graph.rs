@@ -1,4 +1,5 @@
 use crate::engine::{node::Node, port::PortRate};
+use generic_array::ArrayLength;
 use indexmap::IndexSet;
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use std::collections::VecDeque;
@@ -27,10 +28,14 @@ pub struct Connection {
 
 const MAXIMUM_INPUTS: usize = 8;
 
-pub type AudioNode<const AF: usize, const CF: usize> = Box<dyn Node<AF, CF> + Send>;
+pub type AudioNode<AF, CF> = Box<dyn Node<AF, CF> + Send>;
 
 /// A DAG for grabbing nodes and their dependencies via topological sort.
-pub struct AudioGraph<const AF: usize, const CF: usize> {
+pub struct AudioGraph<AF, CF>
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     nodes: SlotMap<NodeKey, AudioNode<AF, CF>>,
     incoming_edges: SecondaryMap<NodeKey, IndexSet<Connection>>,
     outgoing_edges: SecondaryMap<NodeKey, IndexSet<Connection>>,
@@ -40,7 +45,11 @@ pub struct AudioGraph<const AF: usize, const CF: usize> {
     topo_sorted: Vec<NodeKey>,
 }
 
-impl<const AF: usize, const CF: usize> AudioGraph<AF, CF> {
+impl<AF, CF> AudioGraph<AF, CF>
+where
+    AF: ArrayLength,
+    CF: ArrayLength,
+{
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             nodes: SlotMap::with_capacity_and_key(capacity),
@@ -241,7 +250,7 @@ impl<const AF: usize, const CF: usize> AudioGraph<AF, CF> {
 mod test {
 
     use generic_array::{arr, ArrayLength, GenericArray};
-    use typenum::{U0, U1};
+    use typenum::{U0, U1, U16, U256};
 
     use crate::engine::audio_context::AudioContext;
     use crate::engine::graph::GraphError::CycleDetected;
@@ -344,8 +353,10 @@ mod test {
         }
     }
 
-    impl<const AF: usize, const CF: usize, Ai, Ao, Ci, Co> Node<AF, CF> for ExampleNode<Ai, Ao, Ci, Co>
+    impl<AF, CF, Ai, Ao, Ci, Co> Node<AF, CF> for ExampleNode<Ai, Ao, Ci, Co>
     where
+        AF: ArrayLength,
+        CF: ArrayLength,
         Ai: ArrayLength,
         Ao: ArrayLength,
         Ci: ArrayLength,
@@ -362,7 +373,11 @@ mod test {
         }
     }
 
-    fn assert_is_valid_topo<const AF: usize, const CF: usize>(g: &mut AudioGraph<AF, CF>) {
+    fn assert_is_valid_topo<AF, CF>(g: &mut AudioGraph<AF, CF>)
+    where
+        AF: ArrayLength,
+        CF: ArrayLength,
+    {
         let order = g.invalidate_topo_sort().expect("Could not get topo order");
 
         use std::collections::HashMap;
@@ -380,7 +395,7 @@ mod test {
 
     #[test]
     fn test_topo_sort_simple_chain() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(3);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -420,7 +435,7 @@ mod test {
 
     #[test]
     fn test_remove_edges() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(3);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -480,7 +495,7 @@ mod test {
 
     #[test]
     fn test_larger_graph_parallel_inputs() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(5);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(5);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -550,7 +565,7 @@ mod test {
 
     #[test]
     fn test_cycle_detection_two_node_cycle() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(2);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(2);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
 
@@ -588,7 +603,7 @@ mod test {
 
     #[test]
     fn test_cycle_detection_self_loop() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(1);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(1);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let res = graph.add_edge(Connection {
             source: ConnectionEntry {
@@ -607,7 +622,7 @@ mod test {
 
     #[test]
     fn single_node_order() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(1);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(1);
         let a = graph.add_node(Box::new(MonoExample::default()));
 
         assert_eq!(graph.topo_sorted, vec![a])
@@ -615,7 +630,7 @@ mod test {
 
     #[test]
     fn test_remove_node_cleans_edges_and_topo() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(3);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(3);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
         let c = graph.add_node(Box::new(MonoExample::default()));
@@ -659,7 +674,7 @@ mod test {
 
     #[test]
     fn test_add_edge_rejects_missing_endpoints() {
-        let mut graph = AudioGraph::<256, 16>::with_capacity(2);
+        let mut graph = AudioGraph::<U256, U16>::with_capacity(2);
         let a = graph.add_node(Box::new(MonoExample::default()));
 
         // Add a bad key, should throw error when we add an edge

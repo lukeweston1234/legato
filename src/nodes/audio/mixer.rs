@@ -31,8 +31,10 @@ where
     }
 }
 
-impl<const AF: usize, const CF: usize, Ai, Ao> Node<AF, CF> for Mixer<Ai, Ao>
+impl<AF, CF, Ai, Ao> Node<AF, CF> for Mixer<Ai, Ao>
 where
+    AF: ArrayLength,
+    CF: ArrayLength,
     Ai: ArrayLength,
     Ao: ArrayLength,
 {
@@ -57,7 +59,7 @@ where
             buffer.fill(0.0);
         }
 
-        for n in 0..AF {
+        for n in 0..AF::USIZE {
             for c in 0..Ai::USIZE {
                 let index = c % Ao::USIZE;
                 ao[index][n] += ai[c][n] / divisor;
