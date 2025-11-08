@@ -2,7 +2,12 @@ use generic_array::ArrayLength;
 use typenum::{U0, U1, U16, U2, U4, U8};
 
 use crate::{
-    engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
+    engine::{
+        audio_context::AudioContext,
+        buffer::Frame,
+        node::{FrameSize, Node},
+        port::*,
+    },
     nodes::utils::port_utils::{generate_audio_inputs, generate_audio_outputs},
 };
 
@@ -33,8 +38,8 @@ where
 
 impl<AF, CF, Ai, Ao> Node<AF, CF> for Mixer<Ai, Ao>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
     Ai: ArrayLength,
     Ao: ArrayLength,
 {

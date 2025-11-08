@@ -1,23 +1,26 @@
+use std::ops::Mul;
+
 use crate::engine::{
     audio_context::AudioContext,
     buffer::{Buffer, Frame},
     graph::{AudioGraph, AudioNode, Connection, GraphError, NodeKey},
-    node::Node,
+    node::{FrameSize, Node},
     port::{PortRate, PortedErased, Ports},
 };
 use generic_array::ArrayLength;
 use slotmap::SecondaryMap;
-use typenum::U0;
+use typenum::{Prod, U0, U2};
 
 // Arbitrary max init. inputs
 pub const MAX_INITIAL_INPUTS: usize = 32;
 
 pub struct Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
-    C: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
+    C: ArrayLength,
 {
     // Audio context containing sample rate, control rate, etc.
     context: AudioContext<AF>,
@@ -34,10 +37,11 @@ where
 }
 impl<'a, AF, CF, C, Ci> Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
-    C: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
+    C: ArrayLength,
 {
     pub fn new(
         context: AudioContext<AF>,
@@ -99,10 +103,7 @@ where
         self.context.get_sample_rate()
     }
     // TODO: Graphs as nodes again
-    pub fn next_block(
-        &mut self,
-        external_inputs: Option<(&Frame<AF>, &Frame<CF>)>,
-    ) -> &[Buffer<AF>] {
+    pub fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &Frame<AF> {
         let (sorted_order, nodes, incoming) = self.graph.get_sort_order_nodes_and_runtime_info(); // TODO: I don't like this, feels like incorrect ownership
 
         for (i, node_key) in sorted_order.iter().enumerate() {
@@ -183,10 +184,11 @@ where
 
 impl<AF, CF, C, Ci> Node<AF, CF> for Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
-    C: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
+    C: ArrayLength,
 {
     fn process(
         &mut self,
@@ -205,10 +207,11 @@ where
 
 impl<AF, CF, C, Ci> PortedErased for Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
-    C: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
+    C: ArrayLength,
 {
     fn get_audio_inputs(&self) -> Option<&[super::port::AudioInputPort]> {
         self.ports.get_audio_inputs()
@@ -231,8 +234,9 @@ pub fn build_runtime<AF, CF, C, Ci>(
     ports: Ports<C, C, Ci, U0>,
 ) -> Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
     Ci: ArrayLength,
 {
@@ -247,20 +251,24 @@ where
 /// an existing runtime.
 pub trait RuntimeErased<AF, CF>: Node<AF, CF>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
 {
-    fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &[Buffer<AF>];
+    fn next_block(
+        &mut self,
+        external_inputs: Option<(&[Buffer<AF>], &[Buffer<CF>])>,
+    ) -> &[Buffer<AF>];
 }
 
 impl<AF, CF, C, Ci> RuntimeErased<AF, CF> for Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
-    C: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
+    C: ArrayLength,
 {
-    fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &[Buffer<AF>] {
+    fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &Frame<AF> {
         self.next_block(external_inputs)
     }
 }

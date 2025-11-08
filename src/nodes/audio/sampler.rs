@@ -9,11 +9,10 @@ use crate::{
     engine::{
         audio_context::AudioContext,
         buffer::Frame,
-        node::Node,
+        node::{FrameSize, Node},
         port::{Stereo, *},
     },
-    nodes::utils::ffmpeg::decode_with_ffmpeg,
-    nodes::utils::port_utils::generate_audio_outputs,
+    nodes::utils::{ffmpeg::decode_with_ffmpeg, port_utils::generate_audio_outputs},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -78,8 +77,8 @@ where
 
 impl<AF, CF, Ao> Node<AF, CF> for Sampler<Ao>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
     Ao: ArrayLength,
 {
     fn process(

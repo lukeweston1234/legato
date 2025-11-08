@@ -7,7 +7,7 @@ use crate::{
     engine::{
         audio_context::AudioContext,
         buffer::Frame,
-        node::Node,
+        node::{FrameSize, Node},
         port::{
             AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortedErased,
             Ports,
@@ -43,8 +43,8 @@ impl Sweep {
 
 impl<AF, CF> Node<AF, CF> for Sweep
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
 {
     fn process(
         &mut self,

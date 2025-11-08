@@ -1,10 +1,13 @@
 use crate::{
-    engine::buffer::{Buffer, Frame},
+    engine::{
+        buffer::{Buffer, Frame},
+        node::FrameSize,
+    },
     nodes::utils::ring::RingBuffer,
 };
 use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
 use std::ops::Mul;
-use typenum::{PartialDiv, PartialQuot, Prod, U2};
+use typenum::{Prod, U2};
 
 /// A naive 2x rate adapter. Upsamples audio x2 coming in, and back
 /// to audio rate on the way down.
@@ -13,8 +16,8 @@ use typenum::{PartialDiv, PartialQuot, Prod, U2};
 
 pub trait Resampler<N, M, C>
 where
-    N: ArrayLength,
-    M: ArrayLength,
+    N: FrameSize,
+    M: FrameSize,
 {
     fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<M>);
 }
@@ -42,8 +45,8 @@ where
 
 impl<N, C> Resampler<N, Prod<N, U2>, C> for Upsample2x<C>
 where
-    N: ArrayLength + Mul<U2>,
-    Prod<N, U2>: ArrayLength,
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<Prod<N, U2>>) {
@@ -80,8 +83,8 @@ where
 
 pub struct Downsample2x<N, C>
 where
-    N: ArrayLength + Mul<U2>,
-    Prod<N, U2>: ArrayLength,
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     coeffs: Vec<f32>,
@@ -91,8 +94,8 @@ where
 
 impl<N, C> Downsample2x<N, C>
 where
-    N: ArrayLength + Mul<U2>,
-    Prod<N, U2>: ArrayLength,
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     pub fn new(coeffs: Vec<f32>) -> Self {
@@ -108,8 +111,8 @@ where
 /// Downsampler, it's worth noting that N is the traditional audio rate
 impl<N, C> Resampler<Prod<N, U2>, N, C> for Downsample2x<N, C>
 where
-    N: ArrayLength + Mul<U2>,
-    Prod<N, U2>: ArrayLength,
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     fn process_block(&mut self, ai: &Frame<Prod<N, U2>>, ao: &mut Frame<N>) {

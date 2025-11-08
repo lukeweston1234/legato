@@ -7,7 +7,7 @@ use crate::{
     engine::{
         audio_context::DelayLineKey,
         graph::NodeKey,
-        node::Node,
+        node::{FrameSize, Node},
         runtime::{Runtime, RuntimeErased},
     },
     nodes::audio::{
@@ -23,15 +23,15 @@ use crate::{
     },
 };
 
-use typenum::{Integer, PartialDiv, Prod, U1, U2};
+use typenum::{Prod, U1, U2};
 
 // TODO: Find nicer solution for arbitrary port size
 
 pub enum Nodes<AF, CF>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
 {
     // Osc
     OscMono {
@@ -122,9 +122,9 @@ pub enum AddNodeResponse {
 
 pub trait RuntimeBuilder<AF, CF>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
 {
     fn add_node_api(
         &mut self,
@@ -134,9 +134,9 @@ where
 
 impl<AF, CF, C, Ci> RuntimeBuilder<AF, CF> for Runtime<AF, CF, C, Ci>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2> + Send + Sync + 'static,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength + Send + Sync + 'static,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     Ci: ArrayLength,
     C: ArrayLength,
 {

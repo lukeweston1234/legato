@@ -1,5 +1,6 @@
 use std::ops::Mul;
 
+use crate::engine::node::FrameSize;
 use crate::engine::port::{AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort};
 use crate::engine::runtime::RuntimeErased;
 use crate::nodes::audio::resample::{Downsample2x, Upsample2x};
@@ -13,7 +14,7 @@ use crate::{
     nodes::audio::resample::Resampler,
 };
 use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
-use typenum::{Integer, PartialDiv, PartialQuot, Prod, U2, U64};
+use typenum::{Prod, U2, U64};
 
 // Maybe I should not have been so harsh on C++ templates...
 // I have stared into the abyss, and the abyss said back "<<AF as Mul<UInt<UInt<UTerm, B1>, B0>>>::Output as PartialDiv<UInt<UInt<UTerm, B1>, B0>>>::Output"
@@ -28,9 +29,9 @@ use typenum::{Integer, PartialDiv, PartialQuot, Prod, U2, U64};
 ///  Also, control is currently not resampled. This may be tweaked if there are issues.
 pub struct Oversample2X<AF, CF, C>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>,
@@ -43,9 +44,9 @@ where
 
 impl<AF, CF, C> Oversample2X<AF, CF, C>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     pub fn new(runtime: Box<dyn RuntimeErased<Prod<AF, U2>, CF> + Send + 'static>) -> Self {
@@ -60,9 +61,9 @@ where
 
 impl<AF, CF, C> Node<AF, CF> for Oversample2X<AF, CF, C>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     fn process(
@@ -78,10 +79,10 @@ where
 
         // Upsample inputs
         self.upsampler.process_block(ai, &mut self.upsampled_ai);
+
+        let upsampled_slice = self.upsampled_ai.as_slice();
         // Process next subgraph block
-        let res = self
-            .runtime
-            .next_block(Some((self.upsampled_ai.as_slice(), ci)));
+        let res: &Frame<Prod<AF, U2>> = self.runtime.next_block(Some((upsampled_slice, ci)));
         // Downsample and write out
         self.downsampler.process_block(&res, ao);
     }
@@ -89,9 +90,9 @@ where
 
 impl<AF, CF, C> PortedErased for Oversample2X<AF, CF, C>
 where
-    AF: ArrayLength + Mul<U2> + PartialDiv<U2>,
-    Prod<AF, U2>: ArrayLength + Integer + PartialDiv<U2>,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     fn get_audio_inputs(&self) -> Option<&[AudioInputPort]> {

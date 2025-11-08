@@ -1,8 +1,12 @@
-use crate::engine::{node::Node, port::PortRate};
+use crate::engine::{
+    node::{FrameSize, Node},
+    port::PortRate,
+};
 use generic_array::ArrayLength;
 use indexmap::IndexSet;
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Mul};
+use typenum::{Prod, U2};
 
 #[derive(Debug, PartialEq)]
 pub enum GraphError {
@@ -33,8 +37,9 @@ pub type AudioNode<AF, CF> = Box<dyn Node<AF, CF> + Send>;
 /// A DAG for grabbing nodes and their dependencies via topological sort.
 pub struct AudioGraph<AF, CF>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
 {
     nodes: SlotMap<NodeKey, AudioNode<AF, CF>>,
     incoming_edges: SecondaryMap<NodeKey, IndexSet<Connection>>,
@@ -47,8 +52,9 @@ where
 
 impl<AF, CF> AudioGraph<AF, CF>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
 {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -246,16 +252,27 @@ where
     }
 }
 
+fn make_graph<AF, CF>(capacity: usize) -> AudioGraph<AF, CF>
+where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+{
+    AudioGraph::with_capacity(capacity)
+}
+
 #[cfg(test)]
 mod test {
 
+    use std::ops::Mul;
+
     use generic_array::{arr, ArrayLength, GenericArray};
-    use typenum::{U0, U1, U16, U256};
+    use typenum::{Prod, U0, U1, U16, U2, U256, U3, U32};
 
     use crate::engine::audio_context::AudioContext;
     use crate::engine::graph::GraphError::CycleDetected;
-    use crate::engine::graph::{AudioGraph, Connection, ConnectionEntry};
-    use crate::engine::node::Node;
+    use crate::engine::graph::{make_graph, AudioGraph, Connection, ConnectionEntry};
+    use crate::engine::node::{FrameSize, Node};
     use crate::engine::port::{
         AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta, PortRate,
         PortedErased,
@@ -355,8 +372,8 @@ mod test {
 
     impl<AF, CF, Ai, Ao, Ci, Co> Node<AF, CF> for ExampleNode<Ai, Ao, Ci, Co>
     where
-        AF: ArrayLength,
-        CF: ArrayLength,
+        AF: FrameSize,
+        CF: FrameSize,
         Ai: ArrayLength,
         Ao: ArrayLength,
         Ci: ArrayLength,
@@ -375,8 +392,9 @@ mod test {
 
     fn assert_is_valid_topo<AF, CF>(g: &mut AudioGraph<AF, CF>)
     where
-        AF: ArrayLength,
-        CF: ArrayLength,
+        AF: FrameSize + Mul<U2>,
+        Prod<AF, U2>: FrameSize,
+        CF: FrameSize,
     {
         let order = g.invalidate_topo_sort().expect("Could not get topo order");
 
@@ -395,7 +413,7 @@ mod test {
 
     #[test]
     fn test_topo_sort_simple_chain() {
-        let mut graph = AudioGraph::<U256, U16>::with_capacity(3);
+        let mut graph: AudioGraph<U256, U32> = make_graph(3);
 
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
@@ -565,7 +583,7 @@ mod test {
 
     #[test]
     fn test_cycle_detection_two_node_cycle() {
-        let mut graph = AudioGraph::<U256, U16>::with_capacity(2);
+        let mut graph = AudioGraph::<U256, U32>::with_capacity(2);
         let a = graph.add_node(Box::new(MonoExample::default()));
         let b = graph.add_node(Box::new(MonoExample::default()));
 

@@ -7,7 +7,7 @@ use crate::{
     engine::{
         audio_context::{AudioContext, DelayLineKey},
         buffer::Frame,
-        node::Node,
+        node::{FrameSize, Node},
         port::{
             AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, Mono,
             PortedErased, Ports, Stereo,
@@ -23,8 +23,8 @@ pub fn lerp(v0: f32, v1: f32, t: f32) -> f32 {
 #[derive(Clone)]
 pub struct DelayLine<N, C>
 where
-    N: Send + 'static,
-    C: ArrayLength,
+    N: ArrayLength + Send + Sync + 'static,
+    C: ArrayLength + Send + Sync + 'static,
 {
     buffers: GenericArray<Vec<f32>, C>,
     capacity: usize,
@@ -35,17 +35,17 @@ where
 // Erasing delay line so we can store in a global context
 pub trait DelayLineErased<N>: Send + Sync
 where
-    N: ArrayLength,
+    N: ArrayLength + Send + Sync + 'static,
 {
-    fn get_write_pos(&self, channel: usize) -> &usize;
-    fn write_block(&mut self, block: &Frame<N>);
-    fn get_delay_linear_interp(&self, channel: usize, offset: f32) -> f32;
+    fn get_write_pos_erased(&self, channel: usize) -> &usize;
+    fn write_block_erased(&mut self, block: &Frame<N>);
+    fn get_delay_linear_interp_erased(&self, channel: usize, offset: f32) -> f32;
 }
 
 impl<N, C> DelayLine<N, C>
 where
-    N: ArrayLength + Send + 'static,
-    C: ArrayLength + Send + 'static,
+    N: ArrayLength + Send + Sync + 'static,
+    C: ArrayLength + Send + Sync + 'static,
 {
     pub fn new(capacity: usize) -> Self {
         let buffers = GenericArray::generate(|_| vec![0.0; capacity]);
@@ -105,16 +105,16 @@ where
 
 impl<N, C> DelayLineErased<N> for DelayLine<N, C>
 where
-    N: ArrayLength + Send + Sync,
-    C: ArrayLength,
+    N: ArrayLength + Send + Sync + 'static,
+    C: ArrayLength + Send + Sync + 'static,
 {
-    fn get_delay_linear_interp(&self, channel: usize, offset: f32) -> f32 {
+    fn get_delay_linear_interp_erased(&self, channel: usize, offset: f32) -> f32 {
         self.get_delay_linear_interp(channel, offset)
     }
-    fn get_write_pos(&self, channel: usize) -> &usize {
+    fn get_write_pos_erased(&self, channel: usize) -> &usize {
         self.get_write_pos(channel)
     }
-    fn write_block(&mut self, block: &Frame<N>) {
+    fn write_block_erased(&mut self, block: &Frame<N>) {
         self.write_block(block)
     }
 }
@@ -145,8 +145,8 @@ where
 
 impl<AF, CF, Ai> Node<AF, CF> for DelayWrite<Ai>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
     Ai: ArrayLength,
 {
     fn process(
@@ -182,7 +182,7 @@ where
 
 pub struct DelayRead<AF, Ao>
 where
-    AF: ArrayLength,
+    AF: FrameSize,
     Ao: ArrayLength,
 {
     delay_line_key: DelayLineKey,
@@ -192,7 +192,7 @@ where
 }
 impl<AF, Ao> DelayRead<AF, Ao>
 where
-    AF: ArrayLength,
+    AF: FrameSize,
     Ao: ArrayLength,
 {
     pub fn new(delay_line_key: DelayLineKey, delay_times: GenericArray<Duration, Ao>) -> Self {
@@ -212,8 +212,8 @@ where
 
 impl<AF, CF, Ao> Node<AF, CF> for DelayRead<AF, Ao>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
     Ao: ArrayLength,
 {
     fn process(
@@ -238,7 +238,7 @@ where
 
 impl<AF, Ao> PortedErased for DelayRead<AF, Ao>
 where
-    AF: ArrayLength,
+    AF: FrameSize,
     Ao: ArrayLength,
 {
     fn get_audio_inputs(&self) -> Option<&[AudioInputPort]> {

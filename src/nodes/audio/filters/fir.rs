@@ -2,7 +2,12 @@ use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
 use typenum::{U0, U1, U2};
 
 use crate::{
-    engine::{audio_context::AudioContext, buffer::Frame, node::Node, port::*},
+    engine::{
+        audio_context::AudioContext,
+        buffer::Frame,
+        node::{FrameSize, Node},
+        port::*,
+    },
     nodes::utils::{
         port_utils::{generate_audio_inputs, generate_audio_outputs},
         ring::RingBuffer,
@@ -77,8 +82,8 @@ where
 
 impl<C, AF, CF> Node<AF, CF> for FirFilter<C>
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
     C: ArrayLength,
 {
     fn process(

@@ -1,6 +1,7 @@
 use generic_array::ArrayLength;
 
 use crate::engine::audio_context::AudioContext;
+use crate::engine::node::FrameSize;
 use crate::engine::port::{
     AudioInputPort, AudioOutputPort, ControlInputPort, ControlOutputPort, PortMeta,
 };
@@ -20,8 +21,8 @@ impl Default for Stereo {
 
 impl<'a, AF, CF> Node<AF, CF> for Stereo
 where
-    AF: ArrayLength,
-    CF: ArrayLength,
+    AF: FrameSize,
+    CF: FrameSize,
 {
     fn process(
         &mut self,
