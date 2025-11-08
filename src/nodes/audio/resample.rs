@@ -22,28 +22,34 @@ where
     fn process_block(&mut self, ai: &Frame<N>, ao: &mut Frame<M>);
 }
 
-pub struct Upsample2x<C>
+pub struct Upsample2x<N, C>
 where
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     coeffs: Vec<f32>,
+    zero_stuffed: GenericArray<Buffer<Prod<N, U2>>, C>,
     state: GenericArray<RingBuffer, C>,
 }
 
-impl<C> Upsample2x<C>
+impl<N, C> Upsample2x<N, C>
 where
+    N: FrameSize + Mul<U2>,
+    Prod<N, U2>: FrameSize,
     C: ArrayLength,
 {
     pub fn new(coeffs: Vec<f32>) -> Self {
         let kernel_len = coeffs.len();
         Self {
             coeffs,
+            zero_stuffed: GenericArray::generate(|_| Buffer::silent()),
             state: GenericArray::generate(|_| RingBuffer::with_capacity(kernel_len)),
         }
     }
 }
 
-impl<N, C> Resampler<N, Prod<N, U2>, C> for Upsample2x<C>
+impl<N, C> Resampler<N, Prod<N, U2>, C> for Upsample2x<N, C>
 where
     N: FrameSize + Mul<U2>,
     Prod<N, U2>: FrameSize,
@@ -55,7 +61,7 @@ where
         // Zero insert to expand buffer, and just write to out
         for c in 0..C::USIZE {
             let input = &ai[c];
-            let out = &mut ao[c];
+            let out = &mut self.zero_stuffed[c];
             for n in 0..N::USIZE {
                 out[2 * n] = input[n];
                 out[(2 * n) + 1] = 0.0;
@@ -68,14 +74,16 @@ where
         for c in 0..C::USIZE {
             let channel_state = &mut self.state[c];
 
+            let zero_in = &self.zero_stuffed[c];
             let out = &mut ao[c];
-            for x in out.iter_mut() {
+
+            for (i, x) in zero_in.iter().enumerate() {
                 channel_state.push(*x);
                 let mut y = 0.0;
                 for (k, &h) in self.coeffs.iter().enumerate() {
                     y += h * channel_state.get(k);
                 }
-                *x = y;
+                out[i] = y;
             }
         }
     }
@@ -89,7 +97,7 @@ where
 {
     coeffs: Vec<f32>,
     state: GenericArray<RingBuffer, C>,
-    filtered: GenericArray<Buffer<N>, C>,
+    filtered: GenericArray<Buffer<Prod<N, U2>>, C>,
 }
 
 impl<N, C> Downsample2x<N, C>
@@ -135,14 +143,12 @@ where
             }
         }
 
-        let m_size = N::USIZE / 2;
-
         // Decimate by 2
         for c in 0..C::USIZE {
             let input = &self.filtered[c];
             let out = &mut ao[c];
-            for m in 0..m_size {
-                out[m] = input[m * 2]
+            for (m, o) in out.iter_mut().enumerate() {
+                *o = input[m * 2];
             }
         }
     }

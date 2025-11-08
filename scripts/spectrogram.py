@@ -22,6 +22,7 @@ def main():
     plt.pcolormesh(t, f, 10 * np.log10(Sxx + 1e-12), shading="gouraud")
     plt.ylabel("Frequency [Hz]")
     plt.xlabel("Time [s]")
+    plt.xlim(0, len(data) / sr)   # show full duration
     plt.title(f"Spectrogram of {args.path}")
     plt.colorbar(label="Power (dB)")
     plt.savefig(args.out, dpi=250)
