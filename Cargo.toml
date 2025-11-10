@@ -1,8 +1,0 @@
-[package]
-name = "legato"
-version = "0.0.5"
-edition = "2024"
-
-[workspace]
-members = ["legato-core", "legato-dsl"]
-resolver = "2"

@@ -1,4 +1,5 @@
-**/*/target
+target/
+**/target/
 .direnv/
 /samples
 example.png
