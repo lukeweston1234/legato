@@ -169,8 +169,8 @@ fn main() {
 
     runtime.set_sink_key(fir).expect("Bad sink key!");
 
-    // #[cfg(target_os = "linux")]
-    // let host = cpal::host_from_id(cpal::HostId::Jack).expect("JACK host not available");
+    #[cfg(target_os = "linux")]
+    let host = cpal::host_from_id(cpal::HostId::Jack).expect("JACK host not available");
 
     #[cfg(target_os = "macos")]
     let host = cpal::host_from_id(cpal::HostId::CoreAudio).expect("JACK host not available");
