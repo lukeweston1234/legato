@@ -1,7 +1,5 @@
-use crate::ast::Ast;
 use pest::Parser;
 use pest_derive::Parser;
-use std::error::Error;
 
 #[derive(Parser)]
 #[grammar = "./grammar.pest"]
@@ -137,12 +135,24 @@ mod tests {
     }
 
     #[test]
-    fn parse_scope_with_pipe() {
+    fn parse_scope_with_pipe_and_args() {
         parse_ok(
             Rule::scope_block,
             r#"control {
                 io: audio_in { chans: 2 },
                 param: params { min: 0, max: 1.5, alg: lerp } | replicate(8)
+            }
+        "#,
+        )
+    }
+
+    #[test]
+    fn parse_scope_with_pipe_no_args() {
+        parse_ok(
+            Rule::scope_block,
+            r#"control {
+                io: audio_in | replicate(4),
+                lfo | offset({ param: feedback, amount: 0.1, alg: random })
             }
         "#,
         )
@@ -184,7 +194,7 @@ mod tests {
                 gain: looper_gains | replicate(8),
             }
 
-            audio_in.stereo >> looper.audio.stereo
+            audio_in.stereo >> looper.stereo
             params >> looper.control { automap: true }
 
             { params }
@@ -257,8 +267,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_multiline_connections_with_varying_ports(){
+        parse_ok(Rule::connections, 
+        r#"audio_in.stereo >> looper.audio.stereo
+        params >> looper.control
+        "#);
+    }
+
+    #[test]
     fn parse_empty_scope() {
         parse_ok(Rule::scope_block, "empty_scope {}");
+    }
+
+    #[test]
+    fn parse_exports() {
+        parse_ok(Rule::exports, 
+        r#"{ osc_one, lfo_a, delay_1 }"#);
     }
 
     #[test]
