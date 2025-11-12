@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use std::vec::Vec;
+use std::{collections::BTreeMap, default};
 
 use pest::iterators::{Pair, Pairs};
 
@@ -50,17 +50,24 @@ pub type Object = BTreeMap<String, Value>;
 
 // Connections
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Connection {
     pub source_name: String,
     pub sink_name: String,
-    pub ports: Option<PortConnectionType>, // If not present, we assume auto mapped
+    pub source_port: PortConnectionType,
+    pub sink_port: PortConnectionType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum PortConnectionType {
-    Indexed { port: usize },
-    Named { port: String },
+    Indexed {
+        port: usize,
+    },
+    Named {
+        port: String,
+    },
+    #[default]
+    Auto,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,7 +80,7 @@ pub enum BuildAstError {
     ConstructionError(String),
 }
 
-fn build_ast(pairs: Pairs<Rule>) -> Result<Ast, BuildAstError> {
+pub fn build_ast(pairs: Pairs<Rule>) -> Result<Ast, BuildAstError> {
     let mut ast = Ast::default();
 
     for declaration in pairs.into_iter() {
@@ -86,7 +93,7 @@ fn build_ast(pairs: Pairs<Rule>) -> Result<Ast, BuildAstError> {
         }
     }
 
-    todo!()
+    Ok(ast)
 }
 
 fn parse_scope_block<'i>(pair: Pair<'i, Rule>) -> Result<DeclarationScope, BuildAstError> {
@@ -131,16 +138,82 @@ fn parse_node<'i>(pair: Pair<'i, Rule>) -> Result<NodeDeclaration, BuildAstError
 fn parse_pipe<'i>(pair: Pair<'i, Rule>) -> Result<Pipe, BuildAstError> {
     let mut inner = pair.into_inner();
     let name = inner.next().unwrap().as_str().to_string();
-    let params = inner.next().map(|x| parse_value(x).unwrap());
+    let params = inner.skip(1).next().map(|x| parse_value(x).unwrap());
     Ok(Pipe { name, params })
 }
 
 fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<Connection, BuildAstError> {
-    pair.into_inner().map(|x| {
-        let mut node_and_ports_inner = x.into_inner();
-    });
+    let mut connection = Connection::default();
 
-    todo!()
+    let mut inner = pair.into_inner();
+
+    let source_node_and_port = inner.next().unwrap();
+
+    match source_node_and_port.as_rule() {
+        Rule::node_with_port => {
+            let node_with_port_inner = source_node_and_port.into_inner().next().unwrap();
+            connection.source_name = node_with_port_inner.as_str().to_string();
+
+            if let Some(port_spec) = node_with_port_inner.into_inner().next() {
+                match port_spec.as_rule() {
+                    Rule::port_name => {
+                        connection.source_port = PortConnectionType::Named {
+                            port: port_spec.as_str().to_string(),
+                        }
+                    }
+                    Rule::port_index => {
+                        connection.source_port = PortConnectionType::Indexed {
+                            port: port_spec
+                                .into_inner()
+                                .next()
+                                .unwrap()
+                                .as_str()
+                                .parse()
+                                .unwrap(),
+                        }
+                    }
+                    _ => (),
+                };
+            }
+        }
+        Rule::node => connection.source_name = source_node_and_port.as_str().to_string(),
+        _ => (),
+    }
+
+    let sink_node_and_port = inner.next().unwrap();
+
+    match sink_node_and_port.as_rule() {
+        Rule::node_with_port => {
+            let node_with_port_inner = sink_node_and_port.into_inner().next().unwrap();
+            connection.sink_name = node_with_port_inner.as_str().to_string();
+
+            if let Some(port_spec) = node_with_port_inner.into_inner().next() {
+                match port_spec.as_rule() {
+                    Rule::port_name => {
+                        connection.sink_port = PortConnectionType::Named {
+                            port: port_spec.as_str().to_string(),
+                        }
+                    }
+                    Rule::port_index => {
+                        connection.sink_port = PortConnectionType::Indexed {
+                            port: port_spec
+                                .into_inner()
+                                .next()
+                                .unwrap()
+                                .as_str()
+                                .parse()
+                                .unwrap(),
+                        }
+                    }
+                    _ => (),
+                };
+            }
+        }
+        Rule::node => connection.sink_name = sink_node_and_port.as_str().to_string(),
+        _ => (),
+    }
+
+    Ok(connection)
 }
 
 fn parse_exports<'i>(pair: Pair<'i, Rule>) -> Result<Vec<Export>, BuildAstError> {
@@ -171,7 +244,7 @@ fn parse_value<'i>(pair: Pair<'i, Rule>) -> Result<Value, BuildAstError> {
         Rule::object => Value::Obj(parse_object(pair).unwrap()),
         Rule::array => Value::Array(parse_array(pair).unwrap()),
         Rule::ident => Value::Ident(pair.as_str().to_string()),
-        _ => panic!("Unexpected value: {:?}", pair.as_rule()),
+        _ => panic!("Unexpected value!!"),
     };
     Ok(value)
 }

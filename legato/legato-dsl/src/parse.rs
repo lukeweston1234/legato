@@ -1,23 +1,17 @@
-use pest::Parser;
+use pest::{Parser, iterators::Pairs};
 use pest_derive::Parser;
 
 #[derive(Parser)]
 #[grammar = "./grammar.pest"]
 struct LegatoParser;
 
-pub fn parse_legato_file(file: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let raw = std::fs::read_to_string(file)?;
-    let pairs = LegatoParser::parse(Rule::graph, &raw)?;
+pub fn parse_legato_file<'a>(file: &'a str) -> Result<Pairs<'a, Rule>, Box<dyn std::error::Error>> {
+    let pairs = LegatoParser::parse(Rule::graph, file)?;
 
-    // pretty print all rules recursively
-    for pair in pairs {
-        print_pair(&pair, 0);
-    }
-
-    Ok(())
+    Ok(pairs.clone())
 }
 
-fn print_pair(pair: &pest::iterators::Pair<Rule>, indent: usize) {
+pub fn print_pair<'i>(pair: &'i pest::iterators::Pair<Rule>, indent: usize) {
     println!(
         "{:indent$}{:?}: {:?}",
         "",
@@ -267,11 +261,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_multiline_connections_with_varying_ports(){
-        parse_ok(Rule::connections, 
-        r#"audio_in.stereo >> looper.audio.stereo
+    fn parse_multiline_connections_with_varying_ports() {
+        parse_ok(
+            Rule::connections,
+            r#"audio_in.stereo >> looper.audio.stereo
         params >> looper.control
-        "#);
+        "#,
+        );
     }
 
     #[test]
@@ -281,8 +277,7 @@ mod tests {
 
     #[test]
     fn parse_exports() {
-        parse_ok(Rule::exports, 
-        r#"{ osc_one, lfo_a, delay_1 }"#);
+        parse_ok(Rule::exports, r#"{ osc_one, lfo_a, delay_1 }"#);
     }
 
     #[test]

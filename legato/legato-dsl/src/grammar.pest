@@ -50,15 +50,16 @@ add_node = {
 
 // Connections
 
-working_name = @{ ident }
-
+node = @{ ident }
 
 port_name = { ident }
 port_index = { "[" ~ uint ~ "]"}
 
-node_and_port = { working_name ~ !WHITESPACE ~ ("." ~ !WHITESPACE ~ port_name | port_index)? }
-connection = { node_and_port ~ (">>" ~ node_and_port)+ }
+node_with_port = { node ~ !WHITESPACE ~ ("." ~ !WHITESPACE ~ port_name | port_index) }
+
+connection = { (node_with_port | node) ~ (">>" ~ (node_with_port | node))+ }
 connections = _{ connection+ }
+
 
 // Exports
 
