@@ -40,8 +40,9 @@ node_alias = _{ ":" ~ alias_name }
 alias_name = @{ ident }
 
 node_params = { object }
+
 node_pipe = { "|" ~ ident ~ "(" ~ pipe_params? ~ ")" }
-pipe_params = { value }
+pipe_params = _{ value }
 
 add_nodes = { add_node ~ ("," ~ add_node)* ~ ","? }
 add_node = {

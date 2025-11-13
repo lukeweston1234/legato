@@ -7,7 +7,7 @@ control {
 			alg: lerp, 
 			debounce: 20 
 		} 
-		| replicate(8)
+		| replicate(8),
 }
 
 user {
@@ -25,20 +25,23 @@ user {
 
 nodes {
 	gain: looper_gains | replicate(8),
+	lfo { rate: 2.0 },
+	svf
 }
 
 
 
-// alterntively
-// audio_in >> looper.audio { automap: true }
+// we allow explicit, or specific, with names or indexes
+
+audio_in.stereo >> looper.stereo
+params[0] >> looper.control
+lfo >> svf.cutoff
 
 // alternatively
 // audio_in.l >> looper.l
 // audio_in.r >> looper.r
 
-audio_in.stereo >> looper.stereo
-params[0] >> looper.control
-lfo >> svf.cutoff
+
 
 // Easy export on object. Alternatively, we just use builder and have
 // API to access controls?
