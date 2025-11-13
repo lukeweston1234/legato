@@ -23,7 +23,7 @@ string = @{ "\"" ~ ( "\\\"" | !"\"" ~ ANY )* ~ "\"" }
 value = { float | int | uint | string | boolean | object | array | ident }
 kv = { ident ~ ":" ~ value }
 
-object = { "{" ~ (kv ~ ("," ~ kv)*)? ~ ","? ~ "}" }
+object = { "{" ~ (kv ~ ("," ~ kv)* ~ ","?)? ~ "}" }
 array = { "[" ~ (value ~ ("," ~ value)*)? ~ ","? ~ "]" }
 
 // Project Graph
@@ -36,7 +36,7 @@ scope_name = @{ ident }
 scope_block = { scope_name ~ "{" ~ add_nodes? ~ "}" }
 
 node_type = @{ ident }
-node_alias = { ":" ~ alias_name }
+node_alias = _{ ":" ~ alias_name }
 alias_name = @{ ident }
 
 node_params = { object }

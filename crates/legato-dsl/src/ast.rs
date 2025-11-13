@@ -1,9 +1,9 @@
 use std::vec::Vec;
-use std::{collections::BTreeMap, default};
+use std::collections::BTreeMap;
 
 use pest::iterators::{Pair, Pairs};
 
-use crate::parse::Rule;
+use crate::parse::{Rule, print_pair};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Ast {
@@ -126,7 +126,14 @@ fn parse_node<'i>(pair: Pair<'i, Rule>) -> Result<NodeDeclaration, BuildAstError
         match p.as_rule() {
             Rule::node_type => node.node_type = p.as_str().to_string(),
             Rule::alias_name => node.alias = Some(p.as_str().to_string()),
-            Rule::object => node.params = Some(parse_object(p).unwrap()),
+            Rule::node_params => {
+                let mut inner = p.into_inner();
+                let obj = inner.next().unwrap();
+
+                print_pair(&obj, 2);
+                
+                node.params = Some(parse_object(obj).unwrap());
+            },
             Rule::node_pipe => node.pipes.push(parse_pipe(p).unwrap()),
             _ => (),
         }
@@ -234,7 +241,13 @@ fn parse_exports<'i>(pair: Pair<'i, Rule>) -> Result<Vec<Export>, BuildAstError>
 // Utilities for common values
 
 fn parse_value<'i>(pair: Pair<'i, Rule>) -> Result<Value, BuildAstError> {
-    let value = match pair.as_rule() {
+    println!("Parse Value {:?}", pair.as_rule());
+    
+    let inner = pair.clone().into_inner().next().unwrap().as_rule();
+
+    println!("Inner {:?}", inner);
+
+    let value = match inner {
         Rule::float => Value::F32(pair.as_str().parse().unwrap()),
         Rule::int => Value::I32(pair.as_str().parse().unwrap()),
         Rule::uint => Value::U32(pair.as_str().parse().unwrap()),
@@ -244,17 +257,29 @@ fn parse_value<'i>(pair: Pair<'i, Rule>) -> Result<Value, BuildAstError> {
         Rule::object => Value::Obj(parse_object(pair).unwrap()),
         Rule::array => Value::Array(parse_array(pair).unwrap()),
         Rule::ident => Value::Ident(pair.as_str().to_string()),
-        _ => panic!("Unexpected value!!"),
+        _ => {
+            println!("\n\n\n");
+            print_pair(&pair, 4);
+            panic!("Unexpected value!!",)
+        } ,
     };
     Ok(value)
 }
 
 fn parse_object<'i>(pair: Pair<'i, Rule>) -> Result<Object, BuildAstError> {
     let mut obj = BTreeMap::new();
+    println!("Pair in parse object {:?}", pair.as_rule());
     for kv in pair.into_inner() {
+        println!("KV in pair: {:?}", kv.as_rule());
         let mut inner = kv.into_inner();
         let key = inner.next().unwrap().as_str().to_string();
-        let value = parse_value(inner.next().unwrap()).unwrap();
+        println!("Key: {:?}", key);
+
+        let value = inner.next().unwrap();
+
+        println!("Value: {:?}", value);
+
+        let value = parse_value(value).unwrap();
         obj.insert(key, value);
     }
     Ok(obj)
