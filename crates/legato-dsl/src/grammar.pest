@@ -28,7 +28,7 @@ array = { "[" ~ (value ~ ("," ~ value)*)? ~ ","? ~ "]" }
 
 // Project Graph
 
-graph = _{ WHITESPACE* ~ scope_block+ ~ connections ~ exports? ~ WHITESPACE* }
+graph = _{ WHITESPACE* ~ scope_block+ ~ connections? ~ exports? ~ WHITESPACE* }
 
 // Declaration Scopes
 
