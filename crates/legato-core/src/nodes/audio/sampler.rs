@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
 use assert_no_alloc::permit_alloc;
+use cpal::SampleRate;
 use generic_array::{ArrayLength, GenericArray};
 use typenum::U0;
 
@@ -34,8 +35,8 @@ where
     pub fn new(data: Arc<ArcSwapOption<GenericArray<Vec<f32>, C>>>) -> Self {
         Self { data }
     }
-    pub fn load_file(&self, path: &str) -> Result<(), AudioSampleError> {
-        match decode_with_ffmpeg(path) {
+    pub fn load_file(&self, path: &str, sr: u32) -> Result<(), AudioSampleError> {
+        match decode_with_ffmpeg(path, sr) {
             Ok(decoded) => {
                 self.data.store(Some(decoded));
                 Ok(())

@@ -1,4 +1,4 @@
-use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
 use std::{
     io::{BufReader, Read},
     process::{Command, Stdio},
@@ -7,7 +7,7 @@ use std::{
 
 // For the time being, we're just using FFMPEG for loading samples.
 // We can do something better in the future.
-pub fn decode_with_ffmpeg<C>(path: &str) -> std::io::Result<Arc<GenericArray<Vec<f32>, C>>>
+pub fn decode_with_ffmpeg<C>(path: &str, sr: u32) -> std::io::Result<Arc<GenericArray<Vec<f32>, C>>>
 where
     C: ArrayLength,
 {
@@ -19,6 +19,8 @@ where
             "f32le", // correct format for f32
             "-ac",
             &C::USIZE.to_string(), // number of channels
+            "-ar",                 // sample rate
+            &sr.to_string(),
             "-acodec",
             "pcm_f32le",
             "pipe:1",

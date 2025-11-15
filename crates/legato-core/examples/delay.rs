@@ -4,24 +4,24 @@ use cpal::{BufferSize, SampleRate, StreamConfig};
 use legato_core::{
     backend::out::start_audio_thread,
     engine::{
-        builder::{AddNodeResponse, AddNode},
+        builder::{AddNode, AddNodeResponse},
         graph::{Connection, ConnectionEntry},
         port::{PortRate, Ports},
-        runtime::{build_runtime, Runtime},
+        runtime::{Runtime, build_runtime},
     },
     nodes::utils::port_utils::generate_audio_outputs,
 };
 use legato_core::{engine::builder::RuntimeBuilder, nodes::audio::sampler::AudioSampleBackend};
 use std::{sync::Arc, time::Duration};
 
-use typenum::{Unsigned, U0, U2, U2048, U64};
+use typenum::{U0, U2, U16, U64, U512, U2048, Unsigned};
 
 fn main() {
-    type BlockSize = U2048;
-    type ControlSize = U64;
+    type BlockSize = U512;
+    type ControlSize = U16;
     type ChannelCount = U2;
 
-    const SAMPLE_RATE: u32 = 44_100;
+    const SAMPLE_RATE: u32 = 48_000;
     const CAPACITY: usize = 16;
     const DECIMATION_FACTOR: f32 = 32.0;
     const CONTROL_RATE: f32 = SAMPLE_RATE as f32 / DECIMATION_FACTOR;
@@ -48,7 +48,7 @@ fn main() {
         .expect("Could not add sampler");
 
     backend
-        .load_file("./samples/amen.wav")
+        .load_file("./samples/amen.wav", SAMPLE_RATE as u32)
         .expect("Could not load amen sample!");
 
     let (delay_write, delay_write_key_res) = runtime
@@ -239,7 +239,7 @@ fn main() {
     let config = StreamConfig {
         channels: U2::U16,
         sample_rate: SampleRate(SAMPLE_RATE),
-        buffer_size: BufferSize::Fixed(BlockSize::U32),
+        buffer_size: BufferSize::Fixed(BlockSize::to_u32()),
     };
 
     start_audio_thread(&device, &config, runtime).expect("Runtime panic!");
