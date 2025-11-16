@@ -107,6 +107,13 @@ where
         range: (f32, f32),
         duration: Duration,
     },
+    // User defined nodes
+    UserDefined {
+        node: Box<dyn Node<AF, CF> + Send + 'static>,
+    },
+    UserDefinedFactory {
+        factory: Box<dyn Fn() -> Box<dyn Node<AF, CF> + Send>>,
+    },
 }
 
 pub struct RuntimeBuilder<AF, CF, C, Ci>
@@ -272,6 +279,9 @@ where
             AddNode::Subgraph2XOversampled { runtime } => {
                 Box::new(Oversample2X::<AF, CF, C>::new(runtime))
             }
+            // Custom
+            AddNode::UserDefined { node } => node,
+            AddNode::UserDefinedFactory { factory } => factory(),
         };
         self.runtime.add_node(node)
     }
