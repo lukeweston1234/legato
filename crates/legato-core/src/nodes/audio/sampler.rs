@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
-use arc_swap::ArcSwapOption;
 use assert_no_alloc::permit_alloc;
-use generic_array::{ArrayLength, GenericArray};
+use generic_array::ArrayLength;
 use typenum::U0;
 
 use crate::{

@@ -46,11 +46,11 @@ where
 {
     fn process(
         &mut self,
-        ctx: &mut AudioContext<AF>,
+        _: &mut AudioContext<AF>,
         ai: &Frame<AF>,
         ao: &mut Frame<AF>,
-        ci: &Frame<CF>,
-        co: &mut Frame<CF>,
+        _: &Frame<CF>,
+        _: &mut Frame<CF>,
     ) {
         debug_assert_eq!(C::USIZE, ai.len());
         debug_assert_eq!(C::USIZE, ao.len());

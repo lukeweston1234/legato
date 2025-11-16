@@ -600,7 +600,7 @@ mod test {
             })
             .unwrap();
         // Should return error from cycle
-        graph.add_edge(Connection {
+        let _ = graph.add_edge(Connection {
             source: ConnectionEntry {
                 node_key: b,
                 port_index: 0,
