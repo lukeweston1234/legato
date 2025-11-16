@@ -1,5 +1,5 @@
 use generic_array::{ArrayLength, GenericArray};
-use typenum::{Unsigned, U1, U2, U32};
+use typenum::{U1, U2, U32, Unsigned};
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct PortMeta {

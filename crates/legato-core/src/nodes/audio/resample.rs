@@ -5,7 +5,7 @@ use crate::{
     },
     nodes::utils::ring::RingBuffer,
 };
-use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
 use std::ops::Mul;
 use typenum::{Prod, U2};
 

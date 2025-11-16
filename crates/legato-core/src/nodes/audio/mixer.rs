@@ -1,5 +1,5 @@
 use generic_array::ArrayLength;
-use typenum::{U0, U1, U16, U2, U4, U8};
+use typenum::{U0, U1, U2, U4, U8, U16};
 
 use crate::{
     engine::{

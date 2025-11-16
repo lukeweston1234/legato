@@ -1,4 +1,4 @@
-use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
 
 use crate::engine::port::{AudioInputPort, AudioOutputPort, PortMeta};
 

@@ -3,7 +3,7 @@ use crate::engine::{
     port::PortRate,
 };
 use indexmap::IndexSet;
-use slotmap::{new_key_type, SecondaryMap, SlotMap};
+use slotmap::{SecondaryMap, SlotMap, new_key_type};
 use std::{collections::VecDeque, ops::Mul};
 use typenum::{Prod, U2};
 
@@ -256,8 +256,8 @@ mod test {
 
     use std::ops::Mul;
 
-    use generic_array::{arr, ArrayLength, GenericArray};
-    use typenum::{Prod, U0, U1, U16, U2, U256, U32};
+    use generic_array::{ArrayLength, GenericArray, arr};
+    use typenum::{Prod, U0, U1, U2, U16, U32, U256};
 
     use crate::engine::audio_context::AudioContext;
     use crate::engine::graph::GraphError::CycleDetected;
@@ -479,26 +479,34 @@ mod test {
             .expect("Could not add e2");
 
         // Sanity
-        assert!(graph
-            .incoming_connections(b)
-            .expect("Node should exist!")
-            .contains(&e1));
-        assert!(graph
-            .incoming_connections(c)
-            .expect("Node should exist!")
-            .contains(&e2));
+        assert!(
+            graph
+                .incoming_connections(b)
+                .expect("Node should exist!")
+                .contains(&e1)
+        );
+        assert!(
+            graph
+                .incoming_connections(c)
+                .expect("Node should exist!")
+                .contains(&e2)
+        );
 
         graph.remove_edge(e1).unwrap();
         graph.remove_edge(e2).unwrap();
 
-        assert!(!graph
-            .incoming_connections(b)
-            .expect("Node should exist!")
-            .contains(&e1));
-        assert!(!graph
-            .incoming_connections(c)
-            .expect("Node should exist!")
-            .contains(&e2));
+        assert!(
+            !graph
+                .incoming_connections(b)
+                .expect("Node should exist!")
+                .contains(&e1)
+        );
+        assert!(
+            !graph
+                .incoming_connections(c)
+                .expect("Node should exist!")
+                .contains(&e2)
+        );
     }
 
     #[test]

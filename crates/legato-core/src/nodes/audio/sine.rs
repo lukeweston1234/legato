@@ -1,5 +1,5 @@
-use generic_array::{arr, ArrayLength, GenericArray};
-use typenum::{Unsigned, U0, U1};
+use generic_array::{ArrayLength, GenericArray, arr};
+use typenum::{U0, U1, Unsigned};
 
 use crate::engine::audio_context::AudioContext;
 use crate::engine::node::{FrameSize, Node};

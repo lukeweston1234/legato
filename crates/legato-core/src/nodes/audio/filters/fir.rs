@@ -1,4 +1,4 @@
-use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
 use typenum::{U0, U1, U2};
 
 use crate::{

@@ -13,7 +13,7 @@ use crate::{
     },
     nodes::audio::resample::Resampler,
 };
-use generic_array::{sequence::GenericSequence, ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
 use typenum::{Prod, U2};
 
 // Maybe I should not have been so harsh on C++ templates...
