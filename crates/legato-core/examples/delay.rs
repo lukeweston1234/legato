@@ -37,7 +37,7 @@ fn main() {
         );
 
     let sampler = runtime_builder.add_node(AddNode::SamplerStereo {
-        sample_name: String::from("amen"),
+        sampler_name: String::from("amen"),
     });
 
     let delay_write = runtime_builder.add_node(AddNode::DelayWriteStereo {

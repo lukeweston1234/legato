@@ -120,7 +120,7 @@ fn main() {
     let fir = runtime_builder.add_node(AddNode::FirStereo { coeffs });
 
     let sampler = runtime_builder.add_node(AddNode::SamplerStereo {
-        sample_name: String::from("amen"),
+        sampler_name: String::from("amen"),
     });
 
     let (mut runtime, sample_backends) = runtime_builder.get_owned();

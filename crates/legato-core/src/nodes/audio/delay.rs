@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, time::Duration};
 
-use generic_array::{ArrayLength, GenericArray, sequence::GenericSequence};
+use generic_array::{ArrayLength, GenericArray, arr, sequence::GenericSequence};
 use typenum::U0;
 
 use crate::{
@@ -24,7 +24,7 @@ pub fn lerp(v0: f32, v1: f32, t: f32) -> f32 {
 #[derive(Clone)]
 pub struct DelayLine<N, C>
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
     C: ArrayLength + Send + Sync + 'static,
 {
     buffers: GenericArray<Vec<f32>, C>,
@@ -36,7 +36,7 @@ where
 // Erasing delay line so we can store in a global context
 pub trait DelayLineErased<N>: Send + Sync
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
 {
     fn get_write_pos_erased(&self, channel: usize) -> &usize;
     fn write_block_erased(&mut self, block: &Frame<N>);
@@ -45,7 +45,7 @@ where
 
 impl<N, C> DelayLine<N, C>
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
     C: ArrayLength + Send + Sync + 'static,
 {
     pub fn new(capacity: usize) -> Self {
@@ -106,7 +106,7 @@ where
 
 impl<N, C> DelayLineErased<N> for DelayLine<N, C>
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
     C: ArrayLength + Send + Sync + 'static,
 {
     fn get_delay_linear_interp_erased(&self, channel: usize, offset: f32) -> f32 {
@@ -196,10 +196,17 @@ where
     AF: FrameSize,
     Ao: ArrayLength,
 {
-    pub fn new(delay_line_key: DelayLineKey, delay_times: GenericArray<Duration, Ao>) -> Self {
+    pub fn new(delay_line_key: DelayLineKey, delay_times: Vec<Duration>) -> Self {
+        let delay_read_times = GenericArray::<Duration, Ao>::generate(|i| {
+            delay_times
+                .get(i)
+                .copied()
+                .unwrap_or_else(|| Duration::from_millis(200))
+        });
+
         Self {
             delay_line_key,
-            delay_times,
+            delay_times: delay_read_times,
             ports: Ports {
                 audio_inputs: None,
                 audio_outputs: Some(generate_audio_outputs()),

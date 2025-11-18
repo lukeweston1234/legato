@@ -6,6 +6,7 @@ use generic_array::ArrayLength;
 use crate::{
     engine::{
         buffer::Frame,
+        node::FrameSize,
         resources::{DelayLineKey, Resources, SampleKey, audio_sample::AudioSample},
     },
     nodes::audio::delay::DelayLineErased,
@@ -13,7 +14,7 @@ use crate::{
 
 pub struct AudioContext<N>
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
 {
     sample_rate: f32, // avoiding frequent casting
     control_rate: f32,
@@ -22,7 +23,7 @@ where
 
 impl<N> AudioContext<N>
 where
-    N: ArrayLength + Send + Sync + 'static,
+    N: FrameSize + Send + Sync + 'static,
 {
     pub fn new(sample_rate: f32, control_rate: f32) -> Self {
         Self {

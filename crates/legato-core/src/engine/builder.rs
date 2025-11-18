@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Mul, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwapOption;
-use generic_array::{ArrayLength, GenericArray};
+use generic_array::ArrayLength;
 
 use crate::{
     engine::{
@@ -43,10 +43,10 @@ where
     Stereo,
     // Sampler utils
     SamplerMono {
-        sample_name: String,
+        sampler_name: String,
     },
     SamplerStereo {
-        sample_name: String,
+        sampler_name: String,
     },
     // Delays
     DelayWriteMono {
@@ -59,11 +59,11 @@ where
     },
     DelayReadMono {
         delay_name: String,
-        offsets: [Duration; 1],
+        offsets: Vec<Duration>,
     },
     DelayReadStereo {
         delay_name: String,
-        offsets: [Duration; 2],
+        offsets: Vec<Duration>,
     },
     // Filter
     FirMono {
@@ -183,7 +183,9 @@ where
             AddNode::SineMono { freq } => Box::new(SineMono::new(freq, 0.0)),
             AddNode::SineStereo { freq } => Box::new(SineStereo::new(freq, 0.0)),
             // Samplers
-            AddNode::SamplerMono { sample_name } => {
+            AddNode::SamplerMono {
+                sampler_name: sample_name,
+            } => {
                 let sample_key = if let Some(&key) = self.sample_key_lookup.get(&sample_name) {
                     key
                 } else {
@@ -199,7 +201,9 @@ where
 
                 Box::new(SamplerMono::new(sample_key))
             }
-            AddNode::SamplerStereo { sample_name } => {
+            AddNode::SamplerStereo {
+                sampler_name: sample_name,
+            } => {
                 let sample_key = if let Some(&key) = self.sample_key_lookup.get(&sample_name) {
                     key
                 } else {
@@ -254,10 +258,7 @@ where
                     .delay_resource_lookup
                     .get(&delay_name)
                     .expect("Delay read instantiated before line initialized");
-                Box::new(DelayReadMono::new(
-                    delay_key.clone(),
-                    GenericArray::from_array(offsets),
-                ))
+                Box::new(DelayReadMono::new(delay_key.clone(), offsets))
             }
             AddNode::DelayReadStereo {
                 delay_name,
@@ -267,10 +268,7 @@ where
                     .delay_resource_lookup
                     .get(&delay_name)
                     .expect("Delay read instantiated before line initialized");
-                Box::new(DelayReadStereo::new(
-                    delay_key.clone(),
-                    GenericArray::from_array(offsets),
-                ))
+                Box::new(DelayReadStereo::new(delay_key.clone(), offsets))
             }
             // Utils
             AddNode::Sweep { range, duration } => Box::new(Sweep::new(range, duration)),
