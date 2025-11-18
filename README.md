@@ -37,23 +37,33 @@ let graph = String::from(
     
 ```
 
-
-
-
-
-
 There will also be a number of different scripts to graph data.
 
 ```
 nix run .#apps.x86_64-linux.spectrogram -- --path ./example.wav --out ./example.png
 ```
 
+## Roadmap
 
 ### Planned Features For 0.1.0
 
 - Minimal DSL or macros for graph construction
+- Port automapping
+- "Pipes" to allow users to instatiate or modify nodes
+- Convenient abstractions for the UI layer
 - SIMD integration for hot paths like FIR, interpolation, etc.
 - Semi-tuned NixOS images
-- MIDI context and graph
-- Fancy docs and examples
-- Symponia integration instead of FFMPEG
+- MIDI context (will poll or block dedicated thread, handle voicings) and graph
+- Fancy docs
+- Working wavetable demo
+- More interpolation algs.
+- IIR filters (biquad, onepole)
+
+#### Cleanup Issues
+
+Here are a number of issues to keep an eye on, that need to be cleaned up rather soon.
+
+- We likely can use an interior graph rate, and do block rate adapting similar to some other solutions (maybe three latency levels?).
+- Ports likely don't need to be tied to generic array. This is making it annoying to say spawn an N channel node.
+- Framesize trait is a bit gross. Perhaps there is a better way, I am especially grossed out by the Prod and Mul bounds.
+- Do we add an FFT node? Or, should we assume that users can use their own FFT library? I kind of like the second, in MaxMSP 
