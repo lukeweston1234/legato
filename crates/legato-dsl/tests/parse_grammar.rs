@@ -238,6 +238,15 @@ fn parse_multiline_connections_with_varying_ports() {
 }
 
 #[test]
+fn parse_inline_connection() {
+    parse_ok(
+        Rule::connections,
+        r#"audio_in.stereo >> looper.audio.stereo >> params >> looper.control
+        "#,
+    );
+}
+
+#[test]
 fn parse_empty_scope() {
     parse_ok(Rule::scope_block, "empty_scope {}");
 }

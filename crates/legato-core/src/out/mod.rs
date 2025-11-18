@@ -8,7 +8,10 @@ use generic_array::ArrayLength;
 use hound::{WavSpec, WavWriter};
 use typenum::{Prod, U0, U2};
 
-use crate::engine::{node::FrameSize, runtime::Runtime};
+use crate::{
+    application::Application,
+    engine::{node::FrameSize, runtime::Runtime},
+};
 
 pub fn render<AF, CF, C>(
     mut runtime: Runtime<AF, CF, C, U0>,
@@ -51,7 +54,7 @@ where
 }
 
 #[inline(always)]
-fn write_data_cpal<AF, CF, C, Ci, T>(output: &mut [T], runtime: &mut Runtime<AF, CF, C, Ci>)
+fn write_runtime_data_cpal<AF, CF, C, Ci, T>(output: &mut [T], runtime: &mut Runtime<AF, CF, C, Ci>)
 where
     T: SizedSample + FromSample<f64>,
     AF: FrameSize + Mul<U2>,
@@ -70,7 +73,7 @@ where
     }
 }
 
-pub fn start_audio_thread<AF, CF, C, Ci>(
+pub fn start_runtime_audio_thread<AF, CF, C, Ci>(
     device: &Device,
     config: &StreamConfig,
     mut runtime: Runtime<AF, CF, C, Ci>,
@@ -86,7 +89,58 @@ where
         config,
         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
             // assert_no_alloc(|| write_data_cpal::<AF, CF, C, f32>(data, &mut runtime))
-            write_data_cpal(data, &mut runtime);
+            write_runtime_data_cpal(data, &mut runtime);
+        },
+        |err| eprintln!("An output stream error occurred: {}", err),
+        None,
+    )?;
+
+    stream.play().unwrap();
+
+    std::thread::park();
+
+    Ok(())
+}
+
+#[inline(always)]
+fn write_application_data_cpal<AF, CF, C, T>(
+    output: &mut [T],
+    application: &mut Application<AF, CF, C>,
+) where
+    T: SizedSample + FromSample<f64>,
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+    C: ArrayLength,
+{
+    let next_block = application.next_block();
+
+    for (frame_index, frame) in output.chunks_mut(C::USIZE).enumerate() {
+        for (channel, sample) in frame.iter_mut().enumerate() {
+            let pipeline_next_frame = &next_block[channel];
+            *sample = T::from_sample(pipeline_next_frame[frame_index] as f64);
+        }
+    }
+}
+
+/// Separate audio thread implementations as the application
+/// version may drift in the future.
+pub fn start_application_audio_thread<AF, CF, C>(
+    device: &Device,
+    config: &StreamConfig,
+    mut application: Application<AF, CF, C>,
+) -> Result<(), BuildStreamError>
+where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+    C: ArrayLength,
+{
+    let stream = device.build_output_stream(
+        config,
+        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            // assert_no_alloc(|| write_data_cpal::<AF, CF, C, f32>(data, &mut runtime))
+            write_application_data_cpal(data, &mut application);
         },
         |err| eprintln!("An output stream error occurred: {}", err),
         None,

@@ -88,9 +88,10 @@ pub fn build_ast(pairs: Pairs<Rule>) -> Result<Ast, BuildAstError> {
     let mut ast = Ast::default();
 
     for declaration in pairs.into_iter() {
+        print_pair(&declaration, 4);
         match declaration.as_rule() {
             Rule::scope_block => ast.declarations.push(parse_scope_block(declaration)?),
-            Rule::connection => ast.connections.push(parse_connection(declaration)?),
+            Rule::connection => ast.connections.append(&mut parse_connection(declaration)?),
             Rule::sink => {
                 let mut inner = declaration.into_inner();
                 let s = inner.next().unwrap(); // ident or node-path
@@ -140,8 +141,6 @@ fn parse_node<'i>(pair: Pair<'i, Rule>) -> Result<NodeDeclaration, BuildAstError
                 let mut inner = p.into_inner();
                 let obj = inner.next().unwrap();
 
-                print_pair(&obj, 2);
-
                 node.params = Some(parse_object(obj).unwrap());
             }
             Rule::node_pipe => node.pipes.push(parse_pipe(p).unwrap()),
@@ -159,23 +158,37 @@ fn parse_pipe<'i>(pair: Pair<'i, Rule>) -> Result<Pipe, BuildAstError> {
     Ok(Pipe { name, params })
 }
 
-fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<AstNodeConnection, BuildAstError> {
-    let mut inner = pair.into_inner();
+fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<Vec<AstNodeConnection>, BuildAstError> {
+    // Collect all nodes in the chain: A, B, C, ...
+    let mut nodes: Vec<(String, PortConnectionType)> = Vec::new();
 
-    // Source
-    let first = inner.next().unwrap();
-    let (source_name, source_port) = parse_node_or_node_with_port(first)?;
+    for inner in pair.into_inner() {
+        let (name, port) = parse_node_or_node_with_port(inner)?;
+        nodes.push((name, port));
+    }
 
-    // Sink
-    let next = inner.next().unwrap();
-    let (sink_name, sink_port) = parse_node_or_node_with_port(next)?;
+    if nodes.len() < 2 {
+        return Err(BuildAstError::ConstructionError(
+            "connection must involve at least 2 nodes".into(),
+        ));
+    }
 
-    Ok(AstNodeConnection {
-        source_name,
-        source_port,
-        sink_name,
-        sink_port,
-    })
+    // Turn [A, B, C, D] into edges: A→B, B→C, C→D
+    let mut connections = Vec::new();
+
+    for i in 0..nodes.len() - 1 {
+        let (source_name, source_port) = nodes[i].clone();
+        let (sink_name, sink_port) = nodes[i + 1].clone();
+
+        connections.push(AstNodeConnection {
+            source_name,
+            source_port,
+            sink_name,
+            sink_port,
+        });
+    }
+
+    Ok(connections)
 }
 
 fn parse_node_or_node_with_port(

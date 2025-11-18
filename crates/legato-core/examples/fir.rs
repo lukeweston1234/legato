@@ -2,13 +2,13 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{BufferSize, SampleRate, StreamConfig};
 use legato_core::engine::builder::{RuntimeBuilder, get_runtime_builder};
 use legato_core::{
-    out::start_audio_thread,
     engine::{
         builder::AddNode,
         graph::{Connection, ConnectionEntry},
         port::{PortRate, Ports},
     },
     nodes::utils::port_utils::generate_audio_outputs,
+    out::start_runtime_audio_thread,
 };
 use typenum::{U0, U2, U64, U4096, Unsigned};
 
@@ -125,7 +125,12 @@ fn main() {
 
     let (mut runtime, mut backend) = runtime_builder.get_owned();
 
-    backend.load_sample(&String::from("amen"), "./samples/amen.wav", 2, SAMPLE_RATE as u32);
+    backend.load_sample(
+        &String::from("amen"),
+        "./samples/amen.wav",
+        2,
+        SAMPLE_RATE as u32,
+    );
 
     runtime
         .add_edge(Connection {
@@ -175,5 +180,5 @@ fn main() {
         buffer_size: BufferSize::Fixed(BlockSize::U32),
     };
 
-    start_audio_thread(&device, &config, runtime).expect("Runtime panic!");
+    start_runtime_audio_thread(&device, &config, runtime).expect("Runtime panic!");
 }

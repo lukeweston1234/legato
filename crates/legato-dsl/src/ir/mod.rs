@@ -1,14 +1,20 @@
 use std::ops::Mul;
 
 use generic_array::ArrayLength;
-use legato_core::{
-    application::Application,
-    engine::{builder::{AddNode, RuntimeBuilder, get_runtime_builder}, graph::{Connection, ConnectionEntry, NodeKey}, node::FrameSize, port::{PortRate, Ports}, runtime::{Runtime, RuntimeBackend, build_runtime}}, nodes::utils::port_utils::generate_audio_outputs,
+use legato_core::engine::{
+    builder::{AddNode, RuntimeBuilder, get_runtime_builder},
+    graph::{Connection, ConnectionEntry, NodeKey},
+    node::FrameSize,
+    port::{PortRate, Ports},
+    runtime::{Runtime, RuntimeBackend},
 };
-use typenum::{Prod, U0, U2};
 use std::collections::HashMap;
+use typenum::{Prod, U0, U2};
 
-use crate::{ApplicationConfig, BuildApplicationError, ast::{Ast, AstNodeConnection, PortConnectionType, Sink}, ir::{params::Params, registry::LegatoRegistryContainer}};
+use crate::{
+    ast::{Ast, AstNodeConnection, PortConnectionType, Sink},
+    ir::{params::Params, registry::LegatoRegistryContainer},
+};
 
 pub mod params;
 pub mod registry;
@@ -25,7 +31,6 @@ pub enum ValidationError {
     InvalidParameter(String),
     MissingRequiredParameters(String),
     MissingRequiredParameter(String),
-
 }
 
 pub struct IR<AF, CF>
@@ -36,8 +41,7 @@ where
 {
     add_node_instructions: HashMap<String, AddNode<AF, CF>>, // A hashmap of working names -> add node commands
     connections: Vec<AstNodeConnection>,
-    sink: Sink
-    // TODO: Exports
+    sink: Sink, // TODO: Exports
 }
 
 impl<AF, CF> From<Ast> for IR<AF, CF>
@@ -59,10 +63,13 @@ where
                     .get(&scope.namespace, &node.node_type, params_ref.as_ref())
                     .unwrap();
 
-                let working_name = node.alias.ok_or(node.node_type).unwrap();
+                let working_name = node.alias.unwrap_or_else(|| node.node_type);
 
-                if add_node_instructions.contains_key(&working_name){
-                    panic!("Node name {:?} is already in use. Please add an alias.", working_name);
+                if add_node_instructions.contains_key(&working_name) {
+                    panic!(
+                        "Node name {:?} is already in use. Please add an alias.",
+                        working_name
+                    );
                 }
 
                 add_node_instructions.insert(working_name, add_node);
@@ -72,25 +79,30 @@ where
         Self {
             add_node_instructions: add_node_instructions,
             connections: ast.connections,
-            sink: ast.sink
+            sink: ast.sink,
         }
     }
 }
 
-pub fn build_runtime_from_ir<AF, CF, C, Ci>(ir: IR<AF, CF>, initial_capacity: usize, sample_rate: u32, control_rate: usize, ports: Ports<C, C, Ci, U0>) -> (Runtime<AF, CF, C, Ci>, RuntimeBackend)
+pub fn build_runtime_from_ir<AF, CF, C, Ci>(
+    ir: IR<AF, CF>,
+    initial_capacity: usize,
+    sample_rate: u32,
+    control_rate: usize,
+    ports: Ports<C, C, Ci, U0>,
+) -> (Runtime<AF, CF, C, Ci>, RuntimeBackend)
 where
     AF: FrameSize + Mul<U2>,
     Prod<AF, U2>: FrameSize,
     CF: FrameSize,
     C: ArrayLength,
-    Ci: ArrayLength
+    Ci: ArrayLength,
 {
-    let mut runtime_builder: RuntimeBuilder<AF, CF, C, Ci> =
-        get_runtime_builder(
-            initial_capacity,
-            sample_rate as f32,
-            control_rate as f32,
-            ports
+    let mut runtime_builder: RuntimeBuilder<AF, CF, C, Ci> = get_runtime_builder(
+        initial_capacity,
+        sample_rate as f32,
+        control_rate as f32,
+        ports,
     );
 
     let mut node_working_name_to_key_map = HashMap::<String, NodeKey>::new();
@@ -105,8 +117,12 @@ where
     for connection in ir.connections {
         // TODO: Control logic
         // TODO: Messy enough that this needs some tests
-        let source_key = node_working_name_to_key_map.get(&connection.source_name).expect("Could not find source key in connection");
-        let sink_key = node_working_name_to_key_map.get(&connection.sink_name).expect("Could not find sink key in connection");
+        let source_key = node_working_name_to_key_map
+            .get(&connection.source_name)
+            .expect("Could not find source key in connection");
+        let sink_key = node_working_name_to_key_map
+            .get(&connection.sink_name)
+            .expect("Could not find sink key in connection");
 
         let (_, source_audio_ports_out, _, _) = runtime_builder.get_port_info(&source_key);
         let (sink_audio_ports_in, _, _, _) = runtime_builder.get_port_info(&sink_key);
@@ -115,14 +131,17 @@ where
         let sink_ports = sink_audio_ports_in.unwrap();
 
         // Assume audio for now
-        
+
         let manual_port_source: Option<usize> = match connection.source_port {
             PortConnectionType::Auto => None,
             PortConnectionType::Named { ref port } => {
                 let found = source_ports.iter().find(|x| x.meta.name == port);
-                let index = found.expect(&format!("Port {:?} not found", &port)).meta.index;
+                let index = found
+                    .expect(&format!("Port {:?} not found", &port))
+                    .meta
+                    .index;
                 Some(index)
-            },
+            }
             PortConnectionType::Indexed { port } => Some(port),
         };
 
@@ -130,18 +149,27 @@ where
             PortConnectionType::Auto => None,
             PortConnectionType::Named { ref port } => {
                 let found = sink_ports.iter().find(|x| x.meta.name == port);
-                let index = found.expect(&format!("Port {:?} not found", &port)).meta.index;
+                let index = found
+                    .expect(&format!("Port {:?} not found", &port))
+                    .meta
+                    .index;
                 Some(index)
-            },
+            }
             PortConnectionType::Indexed { port } => Some(port),
         };
 
-        connections.push(
-            Connection {
-                source: ConnectionEntry { node_key: *source_key, port_index: manual_port_source.unwrap(), port_rate: PortRate::Audio },
-                sink: ConnectionEntry { node_key: *sink_key, port_index: manual_port_sink.unwrap(), port_rate: PortRate::Audio }
-            }
-        )
+        connections.push(Connection {
+            source: ConnectionEntry {
+                node_key: *source_key,
+                port_index: manual_port_source.unwrap(),
+                port_rate: PortRate::Audio,
+            },
+            sink: ConnectionEntry {
+                node_key: *sink_key,
+                port_index: manual_port_sink.unwrap(),
+                port_rate: PortRate::Audio,
+            },
+        })
     }
 
     let (mut runtime, backend) = runtime_builder.get_owned();
@@ -150,10 +178,13 @@ where
         runtime.add_edge(c).unwrap();
     }
 
-    let sink_ref = node_working_name_to_key_map.get(&ir.sink.name).expect("Could not find sink!");
+    let sink_ref = node_working_name_to_key_map
+        .get(&ir.sink.name)
+        .expect("Could not find sink!");
 
-    runtime.set_sink_key(*sink_ref).expect("Could not set sink!");
+    runtime
+        .set_sink_key(*sink_ref)
+        .expect("Could not set sink!");
 
     (runtime, backend)
 }
-

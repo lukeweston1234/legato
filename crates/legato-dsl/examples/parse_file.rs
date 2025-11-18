@@ -10,6 +10,4 @@ fn main() {
     }
 
     let ast = build_ast(res);
-
-    println!("{:#?}", ast);
 }

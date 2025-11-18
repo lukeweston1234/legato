@@ -7,9 +7,7 @@ use std::{
 use legato_core::engine::{builder::AddNode, node::FrameSize};
 use typenum::{Prod, U2};
 
-use crate::{
-    ir::{ValidationError, params::Params},
-};
+use crate::ir::{ValidationError, params::Params};
 
 /// A node registry trait that let's users extend the graph logic
 /// to make their own node namespaces. For example, you could make a
@@ -67,12 +65,15 @@ where
         node: &String,
         params: Option<&Params>,
     ) -> Result<AddNode<AF, CF>, ValidationError> {
-        if let Some(ns) = self.namespaces.get(namespace){
+        if let Some(ns) = self.namespaces.get(namespace) {
             let add_node = ns.lower_to_ir(node, params)?;
-            return Ok(add_node)
+            return Ok(add_node);
         }
 
-        Err(ValidationError::NamespaceNotFound(format!("Could not find namespace {}", namespace)))
+        Err(ValidationError::NamespaceNotFound(format!(
+            "Could not find namespace {}",
+            namespace
+        )))
     }
 }
 
@@ -274,33 +275,39 @@ where
             // Ops
             "add_mono" => {
                 if let Some(p) = params {
-                    p.validate(&param_list!("props"))?;
+                    p.validate(&param_list!("val"))?;
                 }
-                let props = params.and_then(|p| p.get_f32("props")).unwrap_or(1.0);
+                let props = params.and_then(|p| p.get_f32("val")).unwrap_or(1.0);
                 Ok(AddNode::AddMono { props })
             }
 
             "add_stereo" => {
                 if let Some(p) = params {
-                    p.validate(&param_list!("props"))?;
+                    p.validate(&param_list!("val"))?;
                 }
-                let props = params.and_then(|p| p.get_f32("props")).unwrap_or(1.0);
+                let props = params.and_then(|p| p.get_f32("val")).unwrap_or(1.0);
                 Ok(AddNode::AddStereo { props })
             }
 
             "mult_mono" => {
                 if let Some(p) = params {
-                    p.validate(&param_list!("props"))?;
+                    let p_list = param_list!("val");
+                    p.validate(&p_list)?;
+                    p.required(&p_list)?;
                 }
-                let props = params.and_then(|p| p.get_f32("props")).unwrap_or(1.0);
+                let props = params.and_then(|p| p.get_f32("val")).unwrap_or(1.0);
+                println!("{:?}", props);
                 Ok(AddNode::MultMono { props })
             }
 
             "mult_stereo" => {
                 if let Some(p) = params {
-                    p.validate(&param_list!("props"))?;
+                    let p_list = param_list!("val");
+                    p.validate(&p_list)?;
+                    p.required(&p_list)?;
                 }
-                let props = params.and_then(|p| p.get_f32("props")).unwrap_or(1.0);
+                let props = params.and_then(|p| p.get_f32("val")).unwrap_or(1.0);
+                println!("{:?}", props);
                 Ok(AddNode::MultStereo { props })
             }
 
