@@ -16,7 +16,33 @@ Legato does not aim to be a live coding environment, rather a library to allow d
 
 ### Getting Started
 
-At the moment, it's fairly DIY. There are a few examples for setting this up with CPAL. There will also be a number of different scripts to graph data.
+At the moment, it's fairly DIY. There are a few examples for setting this up with CPAL. 
+
+If you use the DSL (WIP), you can construct a graph easily (more in /examples), like so:
+
+```rust
+let graph = String::from(
+        r#"
+        audio {
+            sine_mono: mod { freq: 550.0 },
+            sine_stereo: carrier { freq: 440.0 },
+            mult_mono: fm_gain { val: 1000.0 }
+        }
+
+        mod[0] >> fm_gain[0] >> carrier[0]
+
+        { carrier }
+    "#,
+    );
+    
+```
+
+
+
+
+
+
+There will also be a number of different scripts to graph data.
 
 ```
 nix run .#apps.x86_64-linux.spectrogram -- --path ./example.wav --out ./example.png
