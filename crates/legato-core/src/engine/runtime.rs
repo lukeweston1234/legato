@@ -5,7 +5,7 @@ use crate::engine::{
     buffer::{Buffer, Frame},
     graph::{AudioGraph, AudioNode, Connection, GraphError, NodeKey},
     node::{FrameSize, Node},
-    port::{PortRate, PortedErased, Ports},
+    port::{GetPorts, PortRate, PortedErased, Ports}, resources::audio_sample::AudioSampleBackend,
 };
 use generic_array::ArrayLength;
 use slotmap::SecondaryMap;
@@ -101,6 +101,10 @@ where
     // F32 is a bit weird here, but we cast so frequently why not
     pub fn get_sample_rate(&self) -> f32 {
         self.context.get_sample_rate()
+    }
+    pub fn get_node_ports(&self, key: &NodeKey) -> GetPorts {
+        // Unwrapping becuase for now this is only used during application creation
+        self.graph.get_node(*key).unwrap().get_ports()
     }
     // TODO: Graphs as nodes again
     pub fn next_block(&mut self, external_inputs: Option<(&Frame<AF>, &Frame<CF>)>) -> &Frame<AF> {
@@ -224,6 +228,29 @@ where
     }
     fn get_control_outputs(&self) -> Option<&[super::port::ControlOutputPort]> {
         self.ports.get_control_outputs()
+    }
+}
+
+/// The backend that sends commands to the runtime.
+/// 
+/// For the time being, this is primarily used to load new samples,
+/// but in the future, it will likely use channels for invoking certain
+/// functions on certain nodes.
+/// 
+/// TOOD: Tidy this up a bit, needs better error handling
+pub struct RuntimeBackend {
+    audio_sample_backend: std::collections::HashMap<String, AudioSampleBackend>
+}
+impl RuntimeBackend {
+    pub fn new(sample_backend: std::collections::HashMap<String, AudioSampleBackend>) -> Self {
+        Self {
+            audio_sample_backend: sample_backend
+        }
+    }
+    pub fn load_sample(&mut self, sampler: &String, path: &str, chans: usize, sr: u32){
+        if let Some(backend) = self.audio_sample_backend.get(sampler) {
+            backend.load_file(path, chans, sr).unwrap();
+        }
     }
 }
 

@@ -4,6 +4,7 @@ use legato_dsl::{
 };
 use pest::Parser;
 
+
 fn parse_ast(input: &str) -> Ast {
     let pairs = LegatoParser::parse(Rule::graph, input).expect("PEST failed");
     build_ast(pairs).expect("AST lowering failed")
@@ -21,7 +22,7 @@ fn ast_node_with_alias_and_params() {
 
     assert_eq!(ast.declarations.len(), 1);
     let scope = &ast.declarations[0];
-    assert_eq!(scope.scope_name, "audio");
+    assert_eq!(scope.namespace, "audio");
 
     assert_eq!(scope.declarations.len(), 1);
     let node = &scope.declarations[0];

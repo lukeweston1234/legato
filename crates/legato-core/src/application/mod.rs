@@ -1,14 +1,28 @@
 use std::ops::Mul;
 
+use generic_array::ArrayLength;
 use typenum::{Prod, U0, U2};
 
 use crate::engine::{node::FrameSize, runtime::Runtime};
 
-pub struct Application<AF, CF>
+pub struct Application<AF, CF, C>
 where
     AF: FrameSize + Mul<U2>,
     Prod<AF, U2>: FrameSize,
     CF: FrameSize,
+    C: ArrayLength
 {
-    runtime: Runtime<AF, CF, U0, U0>,
+    runtime: Runtime<AF, CF, C, U0>,
+}
+impl<AF, CF, C> Application<AF, CF, C> where
+    AF: FrameSize + Mul<U2>,
+    Prod<AF, U2>: FrameSize,
+    CF: FrameSize,
+    C: ArrayLength
+{
+    pub fn new(runtime: Runtime<AF, CF, C, U0>) -> Self  {
+        Self {
+            runtime
+        }
+    }
 }

@@ -1,5 +1,5 @@
 use legato_core::{
-    backend::out::render,
+    out::render,
     engine::builder::{AddNode, RuntimeBuilder, get_runtime_builder},
     nodes::utils::port_utils::generate_audio_inputs,
 };

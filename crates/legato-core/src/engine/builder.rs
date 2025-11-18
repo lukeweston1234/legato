@@ -7,9 +7,9 @@ use crate::{
     engine::{
         graph::NodeKey,
         node::{FrameSize, Node},
-        port::Ports,
+        port::{GetPorts, Ports},
         resources::{DelayLineKey, SampleKey, audio_sample::AudioSampleBackend},
-        runtime::{Runtime, RuntimeErased, build_runtime},
+        runtime::{Runtime, RuntimeBackend, RuntimeErased, build_runtime},
     },
     nodes::audio::{
         audio_ops::{ApplyOpMono, ApplyOpStereo},
@@ -150,12 +150,17 @@ where
         &mut self.runtime
     }
 
-    // Get owned runtime value
-    pub fn get_owned(self) -> (Runtime<AF, CF, C, Ci>, HashMap<String, AudioSampleBackend>) {
-        (self.runtime, self.sample_backend_lookup)
+    // Get owned runtime value. In practice, you won't use this struct anymore after this
+    pub fn get_owned(self) -> (Runtime<AF, CF, C, Ci>, RuntimeBackend) {
+        (self.runtime,RuntimeBackend::new(self.sample_backend_lookup))
     }
+
     fn get_sample_rate(&self) -> f32 {
         self.runtime.get_sample_rate()
+    }
+
+    pub fn get_port_info(&self, node_key: &NodeKey) -> GetPorts {
+        self.runtime.get_node_ports(&node_key)
     }
 
     // Add nodes to runtime

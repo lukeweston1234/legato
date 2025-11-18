@@ -8,7 +8,6 @@ use legato_core::engine::{builder::AddNode, node::FrameSize};
 use typenum::{Prod, U2};
 
 use crate::{
-    ast::Object,
     ir::{ValidationError, params::Params},
 };
 
@@ -24,7 +23,7 @@ where
 {
     fn lower_to_ir(
         &self,
-        name: String,
+        name: &String,
         params: Option<&Params>,
     ) -> Result<AddNode<AF, CF>, ValidationError>;
 }
@@ -65,13 +64,15 @@ where
     pub fn get(
         &self,
         namespace: &String,
-        node: String,
+        node: &String,
         params: Option<&Params>,
     ) -> Result<AddNode<AF, CF>, ValidationError> {
-        let ns = self.namespaces.get(namespace)?;
-        let add_node = ns.lower_to_ir(node, params)?;
+        if let Some(ns) = self.namespaces.get(namespace){
+            let add_node = ns.lower_to_ir(node, params)?;
+            return Ok(add_node)
+        }
 
-        Ok(add_node)
+        Err(ValidationError::NamespaceNotFound(format!("Could not find namespace {}", namespace)))
     }
 }
 
@@ -99,7 +100,7 @@ where
 {
     fn lower_to_ir(
         &self,
-        name: String,
+        name: &String,
         params: Option<&Params>,
     ) -> Result<AddNode<AF, CF>, ValidationError> {
         // TODO: Not in love with this. Maybe a macro or reflection library?

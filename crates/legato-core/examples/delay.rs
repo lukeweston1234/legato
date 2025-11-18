@@ -2,7 +2,7 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{BufferSize, SampleRate, StreamConfig};
 use legato_core::engine::builder::{RuntimeBuilder, get_runtime_builder};
 use legato_core::{
-    backend::out::start_audio_thread,
+    out::start_audio_thread,
     engine::{
         builder::AddNode,
         graph::{Connection, ConnectionEntry},
@@ -47,20 +47,16 @@ fn main() {
 
     let delay_read = runtime_builder.add_node(AddNode::DelayReadStereo {
         delay_name: String::from("amen"),
-        offsets: [Duration::from_millis(12), Duration::from_millis(32)],
+        offsets: vec![Duration::from_millis(12), Duration::from_millis(32)],
     });
 
     let mixer = runtime_builder.add_node(AddNode::TwoTrackStereoMixer);
 
     let delay_gain = runtime_builder.add_node(AddNode::MultStereo { props: 0.6 });
 
-    let (mut runtime, sample_backends) = runtime_builder.get_owned();
+    let (mut runtime, mut backend) = runtime_builder.get_owned();
 
-    let backend = sample_backends.get(&String::from("amen")).unwrap();
-
-    backend
-        .load_file("./samples/amen.wav", 2, SAMPLE_RATE as u32)
-        .expect("Could not load amen sample!");
+    backend.load_sample(&String::from("amen"), "./samples/amen.wav", 2, SAMPLE_RATE as u32);
 
     runtime
         .add_edge(Connection {

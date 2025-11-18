@@ -8,7 +8,7 @@ use crate::parse::{Rule, print_pair};
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Ast {
     pub declarations: Vec<DeclarationScope>,
-    pub connections: Vec<Connection>,
+    pub connections: Vec<AstNodeConnection>,
     pub exports: Vec<Export>,
 }
 
@@ -16,7 +16,7 @@ pub struct Ast {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeclarationScope {
-    pub scope_name: String,
+    pub namespace: String,
     pub declarations: Vec<NodeDeclaration>,
 }
 
@@ -55,7 +55,7 @@ pub type Object = BTreeMap<String, Value>;
 // Connections
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Connection {
+pub struct AstNodeConnection {
     pub source_name: String,
     pub sink_name: String,
     pub source_port: PortConnectionType,
@@ -117,7 +117,7 @@ fn parse_scope_block<'i>(pair: Pair<'i, Rule>) -> Result<DeclarationScope, Build
     }
 
     Ok(DeclarationScope {
-        scope_name,
+        namespace: scope_name,
         declarations,
     })
 }
@@ -153,7 +153,7 @@ fn parse_pipe<'i>(pair: Pair<'i, Rule>) -> Result<Pipe, BuildAstError> {
     Ok(Pipe { name, params })
 }
 
-fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<Connection, BuildAstError> {
+fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<AstNodeConnection, BuildAstError> {
     let mut inner = pair.into_inner();
 
     // Source
@@ -164,7 +164,7 @@ fn parse_connection<'i>(pair: Pair<'i, Rule>) -> Result<Connection, BuildAstErro
     let next = inner.next().unwrap();
     let (sink_name, sink_port) = parse_node_or_node_with_port(next)?;
 
-    Ok(Connection {
+    Ok(AstNodeConnection {
         source_name,
         source_port,
         sink_name,

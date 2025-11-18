@@ -10,6 +10,9 @@ use crate::{
 pub struct Params<'a>(pub &'a Object);
 
 impl<'a> Params<'a> {
+    pub fn new(obj: &'a Object) -> Self {
+        Self(obj)
+    }
     pub fn get_f32(&self, key: &str) -> Option<f32> {
         match self.0.get(key) {
             Some(Value::F32(x)) => Some(*x),
@@ -135,5 +138,11 @@ impl<'a> Params<'a> {
             }
         }
         Ok(())
+    }
+}
+
+impl<'a> From<&'a Object> for Params<'a> {
+    fn from(value: &'a Object) -> Self {
+        Params(value)
     }
 }
