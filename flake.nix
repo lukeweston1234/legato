@@ -59,8 +59,10 @@
       in {
 
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [ 
+          buildInputs = with pkgs; [
+            # Python 
             uv
+            # Rust + Audio
             cargo
             rustc
             rustfmt 
@@ -68,7 +70,10 @@
             pre-commit
             rustPackages.clippy
             jack2
-            ffmpeg_6-full           
+            ffmpeg_6-full
+            # Docs + Blog or whatnot
+            nodejs
+            pnpm     
           ];
           nativeBuildInputs = with pkgs; [
             pkg-config
